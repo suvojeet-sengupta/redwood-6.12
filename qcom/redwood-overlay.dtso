@@ -64,3 +64,16 @@
 		reg = <0x0 0x8b200000 0x0 0x500000>;
 	};
 };
+
+/* redwood has no PMR735A on the SPMI bus, and no SD card slot */
+&pmr735a_1 {
+	status = "disabled";
+};
+
+&pmr735a_temp_alarm {
+	status = "disabled";
+};
+
+&sdhc_2 {
+	status = "disabled";
+};
