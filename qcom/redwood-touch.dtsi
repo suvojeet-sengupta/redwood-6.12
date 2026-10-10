@@ -21,6 +21,14 @@
 	};
 };
 
+/*
+ * The IDP uses SE13 as I2C; on redwood it is the touch SPI bus, and the
+ * I2C driver would otherwise claim the engine first.
+ */
+&qupv3_se13_i2c {
+	status = "disabled";
+};
+
 &qupv3_se13_spi {
 	status = "ok";
 
