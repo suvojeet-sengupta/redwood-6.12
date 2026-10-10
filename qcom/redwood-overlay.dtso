@@ -18,6 +18,7 @@
 #include "gpu/yupik-gpu.dtsi"
 #include "gpu/yupik-gpu-pwrlevels.dtsi"
 #include "redwood-touch.dtsi"
+#include "redwood-wlan.dtsi"
 
 / {
 	model = "Xiaomi redwood (SM7325)";
