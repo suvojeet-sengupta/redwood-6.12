@@ -10,6 +10,9 @@
 /plugin/;
 
 #include "yupik-idp.dtsi"
+#include "display/redwood-sde-pinctrl.dtsi"
+#include "display/redwood-sde.dtsi"
+#include "display/redwood-sde-display.dtsi"
 
 / {
 	model = "Xiaomi redwood (SM7325)";

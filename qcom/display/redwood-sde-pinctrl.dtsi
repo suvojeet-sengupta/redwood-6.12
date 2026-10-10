@@ -1,0 +1,54 @@
+/* Panel reset (gpio44) and TE (gpio80), as in the 5.4 yupik-pinctrl.dtsi */
+&tlmm {
+	sde_dsi_active: sde_dsi_active {
+		mux {
+			pins = "gpio44";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio44";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
+	sde_dsi_suspend: sde_dsi_suspend {
+		mux {
+			pins = "gpio44";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio44";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	sde_te_active: sde_te_active {
+		mux {
+			pins = "gpio80";
+			function = "mdp_vsync";
+		};
+
+		config {
+			pins = "gpio80";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	sde_te_suspend: sde_te_suspend {
+		mux {
+			pins = "gpio80";
+			function = "mdp_vsync";
+		};
+
+		config {
+			pins = "gpio80";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+};
