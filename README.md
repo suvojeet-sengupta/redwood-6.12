@@ -19,7 +19,7 @@ redwood added on top. It goes in the kernel platform tree as
 | Display | works: panel at 1080x2400 120 Hz with the 6.12 display driver |
 | GPU | works: Adreno 642L powers up with kgsl |
 | Touch | works: Goodix Berlin-D with the mainline goodix_berlin driver |
-| Android | not yet |
+| Android | first stage and most of second stage init run; stops at mounting /data |
 | Shell over USB | yes, see bringup |
 
 ## What redwood needs on top of Yupik IDP
@@ -80,6 +80,31 @@ from `kernel_platform/common/drivers/input/touchscreen`. GKI doesn't build
 it, so build `goodix_berlin_core.c` and `goodix_berlin_spi.c` out of tree
 with `obj-m += goodix_berlin_core.o goodix_berlin_spi.o`. The device tree
 is in `qcom/redwood-touch.dtsi`.
+
+## TrustZone
+
+Keymaster, gatekeeper and vold reach TrustZone through `qseecom` and
+`smcinvoke`, which on 6.12 live in `securemsm-kernel`
+(`LA.VENDOR.16.2.8.r1-06100-LAHAINA.0`). Apply
+[patches/securemsm-kernel](patches/securemsm-kernel) and build it like the
+display driver, with `SSG_MODULE_ROOT` and `CONFIG_DISABLE_TEST_MODULES=y`
+plus `CONFIG_QSEECOM=m` (lahaina leaves it off, but redwood's vendor still
+opens `/dev/qseecom`). Its tracepoints include headers through
+`vendor/qcom/opensource/securemsm-kernel` next to `kernel_platform`, so link
+the tree there.
+
+## Android
+
+With the 5.4 vendor ramdisk plus every 6.12 module in it, Android's own
+init loads all modules, mounts system, system_ext, product and vendor and
+gets through most of second stage. Things that matter:
+
+- Pass `clk_ignore_unused pd_ignore_unused`. The bootloader passes
+  `msm_drm.dsi_display0`, so the display driver takes over the splash
+  screen, and without these the clock and power domain sync_state turns
+  the display hardware off underneath it.
+- Without `qseecom`/`smcinvoke` keymaster never comes up and vold waits
+  forever to mount /data (see TrustZone above).
 
 ## Building
 

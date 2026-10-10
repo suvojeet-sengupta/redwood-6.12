@@ -30,6 +30,21 @@ Things to know about redwood:
 - The GKI kernel has no devtmpfs. The init has to `mknod` `/dev/kmsg` and the
   block devices it needs.
 
+## logsaver.c
+
+An `/init` wrapper for booting the real Android ramdisk: rename Android's
+`init` to `init.android` and put this in its place. It forks a child that
+writes the kernel log, which also carries init's messages, to `logdump`
+as it comes in, with a heartbeat every two seconds and blocked task and
+CPU backtraces at 30 and 90 seconds, then execs Android's init.
+
+The child mounts sysfs and proc in its own mount namespace. First stage
+init moves every mount it can see into the new root and kills the boot if
+one fails, so a plain mount there ends in "Attempted to kill init".
+
+redwood has two partitions named `logdump` (`sda29` and `sde56`). Which one
+shows up first changes from boot to boot, so read both back.
+
 ## shell.c, rb.c, rsh.py
 
 The init used for most work now: everything usbtest.c does, then a toybox
