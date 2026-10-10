@@ -30,11 +30,19 @@ Things to know about redwood:
 - The GKI kernel has no devtmpfs. The init has to `mknod` `/dev/kmsg` and the
   block devices it needs.
 
+## usbtest.c
+
+Loads the first stage and vendor_dlkm modules, mounts `modem_a` for the
+firmware, starts the ADSP and sets up a USB ACM + NCM gadget. The ADSP boots
+and UCSI answers, but it never registers the cable partner, so the USB role
+stays at none. Writing `device` to
+`/sys/class/usb_role/a600000.ssusb-role-switch/role` makes the phone show up
+on the computer as an ACM serial port and an NCM network adapter.
+
 ## usbcatcher.c
 
 Sets up a USB NCM and ACM gadget and serves the kernel log on TCP port 2323.
-It needs the USB role from the charger firmware on the ADSP, so it does not
-work yet.
+Superseded by usbtest.c.
 
 ## splashcon
 

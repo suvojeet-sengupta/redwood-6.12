@@ -15,7 +15,7 @@ redwood added on top. It goes in the kernel platform tree as
 | Kernel boots | yes |
 | First stage modules (91) | load |
 | UFS storage | works |
-| USB | not yet |
+| USB | works with the role forced to device |
 | Display | not yet |
 | Android | not yet |
 
