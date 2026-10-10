@@ -1,0 +1,26 @@
+From 2f3b123eedf97f9290aaf1f36b6f7b87e81505b2 Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Sat, 10 Oct 2026 12:21:14 +0000
+Subject: [PATCH] wlan: platform: Use the soc-repo headers when SOCINCLUDE is
+ set
+
+Out of tree builds need the soc-repo versions of headers like linux/remoteproc/qcom_rproc.h (early SSR notifiers) ahead of the GKI ones.
+---
+ Kbuild | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/Kbuild b/Kbuild
+index 89b8166..1d623fe 100644
+--- a/Kbuild
++++ b/Kbuild
+@@ -1,3 +1,7 @@
++ifneq ($(SOCINCLUDE),)
++LINUXINCLUDE := $(SOCINCLUDE) $(LINUXINCLUDE)
++endif
++
+ ifeq ($(CONFIG_CNSS_OUT_OF_TREE),y)
+ KBUILD_CPPFLAGS += -DCONFIG_CNSS_OUT_OF_TREE
+ endif
+-- 
+2.53.0
+
