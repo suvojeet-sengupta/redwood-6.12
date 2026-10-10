@@ -19,7 +19,7 @@ redwood added on top. It goes in the kernel platform tree as
 | Display | works: panel at 1080x2400 120 Hz with the 6.12 display driver |
 | GPU | works: Adreno 642L powers up with kgsl |
 | Touch | works: Goodix Berlin-D with the mainline goodix_berlin driver |
-| Android | first stage and most of second stage init run; stops at mounting /data |
+| Android | second stage runs, keymaster works with the libion shim; /data fails at the ICE wrapped key |
 | Shell over USB | yes, see bringup |
 
 ## What redwood needs on top of Yupik IDP
@@ -105,6 +105,21 @@ gets through most of second stage. Things that matter:
   the display hardware off underneath it.
 - Without `qseecom`/`smcinvoke` keymaster never comes up and vold waits
   forever to mount /data (see TrustZone above).
+- Leave `tz_log` out: probing it resets the phone on the spot.
+- redwood's 5.4 vendor allocates TrustZone buffers through ION
+  (`libQSEEComAPI` uses `libion`), and 6.12 has no ION.
+  [bringup/ionshim.c](bringup/ionshim.c) is a `libion` that hands every ION
+  allocation to the matching DMA-BUF heap (the qseecom heap to
+  `qcom,qseecom` and so on). The vendor's `ueventd.rc` only opens up the
+  AOSP heaps, so the `qcom,*` heap nodes also need `0444 system system`, or
+  the allocations quietly land in the system heap and TrustZone turns the
+  listener buffers down with `-EINVAL`. For testing, logsaver bind mounts
+  both over `/vendor` in RAM.
+- With that, keymaster and the listeners work and vold sets up the
+  metadata encryption, but programming the wrapped key into the UFS
+  inline crypto engine fails (`qcom_ice_program_wrapped_key: SCM call
+  Error: 0xffffffea`), so /data reads fail and init ends up in recovery.
+  Never format data from there: /data is shared with the working slot.
 
 ## Building
 

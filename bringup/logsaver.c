@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <time.h>
@@ -59,6 +60,84 @@ static int find_logdump(void)
 	return fd;
 }
 
+/*
+ * The 5.4 vendor allocates through ION, which 6.12 does not have. Once
+ * Android's init has /vendor mounted, bind mount a libion that uses the
+ * DMA-BUF heaps over the vendor's, in init's mount namespace. It only
+ * lives in RAM; the vendor partition stays as it is.
+ */
+static int shim_fd[2] = { -1, -1 };
+static const char *shim_src[2] = { "/ionshim64.so", "/ionshim32.so" };
+static const char *shim_tmp[2] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so" };
+static const char *shim_dst[2] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so" };
+
+static int place_shims(int wfd)
+{
+	pid_t pid;
+	int st;
+
+	if (access("/ls/proc/1/root/vendor/lib64/libion.so", F_OK))
+		return 0;
+	pid = fork();
+	if (pid == 0) {
+		int ns = open("/ls/proc/1/ns/mnt", O_RDONLY | O_CLOEXEC);
+		int root = open("/ls/proc/1/root", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		int i;
+
+		if (ns < 0 || root < 0 || setns(ns, CLONE_NEWNS) || fchdir(root) || chroot(".")) {
+			dprintf(wfd, "<3>logsaver: can't enter init's mounts: %d\n", errno);
+			_exit(1);
+		}
+		for (i = 0; i < 2; i++) {
+			char b[65536];
+			ssize_t n;
+			off_t off = 0;
+			int out = open(shim_tmp[i], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+
+			if (out < 0 || shim_fd[i] < 0)
+				continue;
+			while ((n = pread(shim_fd[i], b, sizeof(b), off)) > 0) {
+				if (write(out, b, n) != n)
+					break;
+				off += n;
+			}
+			close(out);
+			if (mount(shim_tmp[i], shim_dst[i], NULL, MS_BIND, NULL))
+				dprintf(wfd, "<3>logsaver: bind %s failed: %d\n", shim_dst[i], errno);
+			else
+				dprintf(wfd, "<6>logsaver: libion shim on %s\n", shim_dst[i]);
+		}
+		/* the vendor's ueventd.rc only opens up the AOSP heaps */
+		{
+			static const char rule[] =
+				"\n/dev/dma_heap/qcom,*      0444   system     system\n";
+			static char rc[262144];
+			int in = open("/vendor/etc/ueventd.rc", O_RDONLY | O_CLOEXEC);
+			ssize_t n = in >= 0 ? read(in, rc, sizeof(rc) - sizeof(rule)) : -1;
+			int out;
+
+			if (in >= 0)
+				close(in);
+			out = n > 0 ? open("/dev/.ueventd.rc", O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644) : -1;
+			if (out >= 0) {
+				memcpy(rc + n, rule, sizeof(rule) - 1);
+				n += sizeof(rule) - 1;
+				if (write(out, rc, n) == n &&
+				    !mount("/dev/.ueventd.rc", "/vendor/etc/ueventd.rc", NULL, MS_BIND, NULL))
+					dprintf(wfd, "<6>logsaver: ueventd.rc with the qcom heaps\n");
+				else
+					dprintf(wfd, "<3>logsaver: ueventd.rc bind failed: %d\n", errno);
+				close(out);
+			}
+		}
+		_exit(0);
+	}
+	if (pid < 0)
+		return 0;
+	waitpid(pid, &st, 0);
+	return 1;
+}
+
 static void saver(void)
 {
 	static char buf[BUF_MAX];
@@ -80,6 +159,9 @@ static void saver(void)
 	if (kfd < 0)
 		return;
 	used = snprintf(buf, sizeof(buf), "REDWOOD612ANDROID\n");
+	shim_fd[0] = open(shim_src[0], O_RDONLY | O_CLOEXEC);
+	shim_fd[1] = open(shim_src[1], O_RDONLY | O_CLOEXEC);
+	int shimmed = 0;
 
 	/* write new kernel log as soon as it shows up, so that the last
 	 * messages before a reboot make it out too */
@@ -123,7 +205,9 @@ static void saver(void)
 				done = used;
 			fdatasync(out);
 		}
-		poll(&p, 1, 50);
+		if (!shimmed)
+			shimmed = place_shims(wfd);
+		poll(&p, 1, shimmed ? 50 : 10);
 	}
 }
 

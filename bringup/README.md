@@ -42,6 +42,18 @@ The child mounts sysfs and proc in its own mount namespace. First stage
 init moves every mount it can see into the new root and kills the boot if
 one fails, so a plain mount there ends in "Attempted to kill init".
 
+It also bind mounts [ionshim.c](ionshim.c), built with the NDK as
+`libion.so` for arm64 and arm, over `/vendor/lib64/libion.so` and
+`/vendor/lib/libion.so`, and a copy of the vendor's `ueventd.rc` with a
+rule for the `qcom,*` DMA-BUF heaps over the original, from inside init's
+mount namespace once `/vendor` is up. Put the shims at `/ionshim64.so` and
+`/ionshim32.so` in the boot ramdisk.
+
+```
+aarch64-linux-android30-clang -shared -fPIC -O2 -Wl,-soname,libion.so -o ionshim64.so ionshim.c
+armv7a-linux-androideabi30-clang -shared -fPIC -O2 -Wl,-soname,libion.so -o ionshim32.so ionshim.c
+```
+
 redwood has two partitions named `logdump` (`sda29` and `sde56`). Which one
 shows up first changes from boot to boot, so read both back.
 
