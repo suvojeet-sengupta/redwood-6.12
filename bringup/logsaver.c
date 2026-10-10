@@ -56,7 +56,25 @@ static int find_logdump(void)
 			continue;
 		unlink("/ls/logdump");
 		mknod("/ls/logdump", S_IFBLK | 0600, makedev(maj, min));
-		fd = open("/ls/logdump", O_WRONLY | O_CLOEXEC);
+		/* only write to a cleared partition, so an unread log from an
+		 * earlier boot survives the boot used to read it */
+		fd = open("/ls/logdump", O_RDWR | O_CLOEXEC);
+		if (fd >= 0) {
+			unsigned char head[64];
+			size_t k;
+
+			if (pread(fd, head, sizeof(head), 0) != sizeof(head)) {
+				close(fd);
+				fd = -1;
+				continue;
+			}
+			for (k = 0; k < sizeof(head) && !head[k]; k++)
+				;
+			if (k < sizeof(head)) {
+				close(fd);
+				fd = -1;
+			}
+		}
 	}
 	closedir(d);
 	return fd;
@@ -68,11 +86,12 @@ static int find_logdump(void)
  * DMA-BUF heaps over the vendor's, in init's mount namespace. It only
  * lives in RAM; the vendor partition stays as it is.
  */
-static int shim_fd[3] = { -1, -1, -1 };
+static int shim_fd[4] = { -1, -1, -1, -1 };
 /* fstab.test mounts /data read-only, so a broken key setup can't write to it */
-static const char *shim_src[3] = { "/ionshim64.so", "/ionshim32.so", "/fstab.test" };
-static const char *shim_tmp[3] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so", "/dev/.fstab.test" };
-static const char *shim_dst[3] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so", "/vendor/etc/fstab.default" };
+/* media.sh picks the yupik v1 media profiles, which the missing video driver would report */
+static const char *shim_src[4] = { "/ionshim64.so", "/ionshim32.so", "/fstab.test", "/media.sh" };
+static const char *shim_tmp[4] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so", "/dev/.fstab.test", "/dev/.media.sh" };
+static const char *shim_dst[4] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so", "/vendor/etc/fstab.default", "/vendor/bin/init.qti.media.sh" };
 
 static int place_shims(int wfd)
 {
@@ -91,11 +110,11 @@ static int place_shims(int wfd)
 			dprintf(wfd, "<3>logsaver: can't enter init's mounts: %d\n", errno);
 			_exit(1);
 		}
-		for (i = 0; i < 3; i++) {
+		for (i = 0; i < 4; i++) {
 			char b[65536];
 			ssize_t n;
 			off_t off = 0;
-			int out = open(shim_tmp[i], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+			int out = open(shim_tmp[i], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0755);
 
 			if (out < 0 || shim_fd[i] < 0) {
 				if (i == 2)
@@ -177,6 +196,7 @@ static void saver(void)
 	shim_fd[0] = open(shim_src[0], O_RDONLY | O_CLOEXEC);
 	shim_fd[1] = open(shim_src[1], O_RDONLY | O_CLOEXEC);
 	shim_fd[2] = open(shim_src[2], O_RDONLY | O_CLOEXEC);
+	shim_fd[3] = open(shim_src[3], O_RDONLY | O_CLOEXEC);
 	int shimmed = 0;
 
 	/* write new kernel log as soon as it shows up, so that the last

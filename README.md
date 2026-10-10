@@ -19,7 +19,7 @@ redwood added on top. It goes in the kernel platform tree as
 | Display | works: panel at 1080x2400 120 Hz with the 6.12 display driver |
 | GPU | works: Adreno 642L powers up with kgsl |
 | Touch | works: Goodix Berlin-D with the mainline goodix_berlin driver |
-| Android | second stage runs, keymaster works with the libion shim, /data decrypts and mounts (read-only for now) |
+| Android | boots to the setup wizard (with the test workarounds below) |
 | Shell over USB | yes, see bringup |
 
 ## What redwood needs on top of Yupik IDP
@@ -129,6 +129,18 @@ gets through most of second stage. Things that matter:
   `ro,norecovery` on /data and without `check` and `formattable`, and
   reboots to the bootloader if it can't. If init lands in recovery, never
   format data from there: /data is shared with the working slot.
+
+- The vendor composer needs the DMA pipes. The 6.12 display driver only
+  sets them up when every `dgm` sub-block in `qcom,sde-sspp-dma-blocks` has
+  a `cell-index`; without it there are two planes and SDM fails with
+  `DisplayBase::Init: Display 59 comp manager registration failed!`.
+- The media profiles are picked from the video driver's `sku_version`,
+  which doesn't exist yet on 6.12, so `init.qti.media.sh` chooses
+  `_yupik_v0`, which has no XML, and zygote aborts in `MediaProfiles`.
+  For now logsaver bind mounts [bringup/media.sh](bringup/media.sh), which
+  picks `_yupik_v1`, until the video driver is ported.
+- Booting 6.12 with /data writable left the shared /data unusable for the
+  5.4 system on slot a. Only test that way with nothing to lose on /data.
 
 ## Building
 
