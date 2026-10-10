@@ -1,0 +1,71 @@
+From fd7b26d537b513de97eacbab46acd0f669decd09 Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Sat, 10 Oct 2026 10:56:31 +0000
+Subject: [PATCH] msm: kgsl: Accept list sizes from older userspace
+
+The 5.4 era libgsl on redwood passes the size of the whole command list
+as the entry size, e.g. 64 for two 32 byte command objects.
+copy_struct_from_user() then sees the second entry as non-zero trailing
+bytes and fails, every multi-entry GPU_COMMAND returns -EFAULT, and apps
+hang in RenderThread until they ANR. Copy min(entry size, user size) like
+the 5.4 driver did.
+---
+ kgsl_drawobj.c | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/kgsl_drawobj.c b/kgsl_drawobj.c
+index eaac2fc..3ac90f7 100644
+--- a/kgsl_drawobj.c
++++ b/kgsl_drawobj.c
+@@ -1357,6 +1357,21 @@ static int add_syncpoints_compat(struct kgsl_device *device,
+  *   0: All data fields are empty (nothing to do)
+  *   1: All list information is valid
+  */
++/*
++ * Older userspace (the 5.4 era libgsl) passes the size of the whole list
++ * rather than of one entry for cmdlist/memlist/synclist. Copy what fits
++ * like the 5.4 driver did instead of rejecting the "extra" bytes, which
++ * are really the next entry.
++ */
++static int kgsl_copy_list_entry(void *dst, size_t ksize,
++		const void __user *src, size_t usize)
++{
++	memset(dst, 0, ksize);
++	if (copy_from_user(dst, src, min(ksize, usize)))
++		return -EFAULT;
++	return 0;
++}
++
+ static int _verify_input_list(unsigned int count, void __user *ptr,
+ 		unsigned int size)
+ {
+@@ -1482,7 +1497,7 @@ int kgsl_drawobj_cmd_add_cmdlist(struct kgsl_device *device,
+ 		return ret;
+ 
+ 	for (i = 0; i < count; i++) {
+-		if (copy_struct_from_user(&obj, sizeof(obj), ptr, size))
++		if (kgsl_copy_list_entry(&obj, sizeof(obj), ptr, size))
+ 			return -EFAULT;
+ 
+ 		/* Sanity check the flags */
+@@ -1521,7 +1536,7 @@ int kgsl_drawobj_cmd_add_memlist(struct kgsl_device *device,
+ 		return ret;
+ 
+ 	for (i = 0; i < count; i++) {
+-		if (copy_struct_from_user(&obj, sizeof(obj), ptr, size))
++		if (kgsl_copy_list_entry(&obj, sizeof(obj), ptr, size))
+ 			return -EFAULT;
+ 
+ 		if (!(obj.flags & KGSL_OBJLIST_MEMOBJ)) {
+@@ -1599,7 +1614,7 @@ int kgsl_drawobj_sync_add_synclist(struct kgsl_device *device,
+ 		return -ENOMEM;
+ 
+ 	for (i = 0; i < count; i++) {
+-		if (copy_struct_from_user(&syncpoint, sizeof(syncpoint), ptr, size))
++		if (kgsl_copy_list_entry(&syncpoint, sizeof(syncpoint), ptr, size))
+ 			return -EFAULT;
+ 
+ 		sync.type = syncpoint.type;
+-- 
+2.53.0
+

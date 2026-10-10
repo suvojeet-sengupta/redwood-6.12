@@ -73,6 +73,13 @@ and build it like the display driver, with `KGSL_PATH` instead of
 `SOCINCLUDE`. It needs `a660_sqe.fw`, `a660_gmu.bin` and `a660_zap.*` from
 `/vendor/firmware`.
 
+The 5.4 era `libgsl` gives the size of the whole command list as the
+entry size in `IOCTL_KGSL_GPU_COMMAND` (64 for two 32 byte objects). The
+6.12 driver's `copy_struct_from_user()` takes the second entry for
+trailing garbage and fails with `-EFAULT`, so apps hang in RenderThread
+and ANR. `0002` in [patches/graphics-kernel](patches/graphics-kernel)
+copies like the 5.4 driver did.
+
 ## Touch
 
 redwood's Goodix Berlin-D works with the mainline `goodix_berlin` driver
