@@ -8,6 +8,7 @@
 	icnss2: qcom,wcn6750 {
 		compatible = "qcom,wcn6750";
 		qcom,rproc-handle = <&wpss_pas>;
+		qcom,wlan;
 		reg = <0x17a10040 0x0>,
 		      <0xb0000000 0x10000>,
 		      <0xb2e5510 0x5c0>;
