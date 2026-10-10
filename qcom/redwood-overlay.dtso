@@ -35,3 +35,32 @@
 &{/soc/qcom_ramoops} {
 	status = "disabled";
 };
+
+/*
+ * redwood's firmware uses the older Yupik memory map, the one the 5.4
+ * kernel describes: AOP starts at 0x80600000, the ADSP takes 64M, the CDSP
+ * sits at 0x9c700000 and the CVP at 0x8b200000. Qualcomm's 6.12 map would
+ * put the CDSP inside the ADSP's memory here and leave the CVP unreserved.
+ */
+&xbl_aop_mem {
+	reg = <0x0 0x80600000 0x0 0x260000>;
+};
+
+&pil_adsp_mem {
+	reg = <0x0 0x86700000 0x0 0x4000000>;
+};
+
+&pil_cdsp_mem {
+	reg = <0x0 0x9c700000 0x0 0x1e00000>;
+};
+
+&removed_mem {
+	reg = <0x0 0xc0000000 0x0 0x6800000>;
+};
+
+&reserved_memory {
+	cvp@8b200000 {
+		no-map;
+		reg = <0x0 0x8b200000 0x0 0x500000>;
+	};
+};
