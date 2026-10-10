@@ -574,6 +574,7 @@ _platform_map = {
             {"name": "yupik-atp-overlay.dtbo"},
             {"name": "yupikp-atp-overlay.dtbo"},
             {"name": "yupik-idp-hsp-overlay.dtbo"},
+            {"name": "redwood-overlay.dtbo"},
             {"name": "yupikp-idp-hsp-overlay.dtbo"},
             {"name": "lahaina-rumi-overlay.dtbo"},
             {"name": "lahaina-mtp-overlay.dtbo"},
