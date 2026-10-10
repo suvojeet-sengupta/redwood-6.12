@@ -1,0 +1,25 @@
+From a7d08d30eafbcd3eedb71f49b32bbea014c7ec0f Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Sat, 10 Oct 2026 13:11:12 +0000
+Subject: [PATCH] mm-drivers: Build for lahaina
+
+The legacy audio-kernel lahaina modules depend on msm_ext_display; add lahaina to the Bazel targets.
+---
+ target_variants.bzl | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/target_variants.bzl b/target_variants.bzl
+index 623eaa5..827cb13 100644
+--- a/target_variants.bzl
++++ b/target_variants.bzl
+@@ -4,6 +4,7 @@ targets = [
+     "bengal",
+     "canoe",
+     "gen3auto",
++    "lahaina",
+     "parrot",
+     "seraph",
+     "sun",
+-- 
+2.53.0
+
