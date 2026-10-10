@@ -13,6 +13,10 @@
 #include "display/redwood-sde-pinctrl.dtsi"
 #include "display/redwood-sde.dtsi"
 #include "display/redwood-sde-display.dtsi"
+#include <dt-bindings/clock/qcom,gpucc-sc7280.h>
+#include <dt-bindings/clock/qcom,aop-qmp.h>
+#include "gpu/yupik-gpu.dtsi"
+#include "gpu/yupik-gpu-pwrlevels.dtsi"
 
 / {
 	model = "Xiaomi redwood (SM7325)";
