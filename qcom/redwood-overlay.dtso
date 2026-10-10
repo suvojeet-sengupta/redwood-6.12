@@ -20,6 +20,8 @@
 #include "redwood-touch.dtsi"
 #include "redwood-wlan.dtsi"
 #include "redwood-ipa.dtsi"
+#include "redwood-audio/yupik-audio.dtsi"
+#include "redwood-audio/redwood-audio-overlay.dtsi"
 
 / {
 	model = "Xiaomi redwood (SM7325)";
