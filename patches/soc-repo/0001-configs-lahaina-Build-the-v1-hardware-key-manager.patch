@@ -1,0 +1,40 @@
+From a2b3f438bbb9e68503f7bc31a66ec4ed51f5978e Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Sat, 10 Oct 2026 08:34:54 +0000
+Subject: [PATCH] configs: lahaina: Build the v1 hardware key manager
+
+Lahaina has HWKM v1. Without it the ICE driver programs wrapped keys through the TrustZone call meant for v2, which lahaina's TrustZone rejects, and wrapped key metadata encryption can't unlock /data.
+
+Change-Id: I3fc65a4da7ba3eb8b268ca3d91fd71ccf3d51cd8
+---
+ configs/lahaina_perf.bzl               | 1 +
+ modules-lists/modules.list.msm.lahaina | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/configs/lahaina_perf.bzl b/configs/lahaina_perf.bzl
+index 2de829d..def1281 100644
+--- a/configs/lahaina_perf.bzl
++++ b/configs/lahaina_perf.bzl
+@@ -298,6 +298,7 @@ lahaina_perf_config = {
+     "CONFIG_QTI_DDR_COOLING_DEVICE": "m",
+     "CONFIG_QTI_DEVFREQ_CDEV": "m",
+     "CONFIG_QTI_GLINK_ADC": "m",
++    "CONFIG_QTI_HW_KEY_MANAGER_V1": "m",
+     "CONFIG_QTI_IOMMU_SUPPORT": "m",
+     "CONFIG_QTI_PMIC_GLINK": "m",
+     "CONFIG_QTI_PMIC_GLINK_DEBUG": "m",
+diff --git a/modules-lists/modules.list.msm.lahaina b/modules-lists/modules.list.msm.lahaina
+index da54e23..7247cfb 100644
+--- a/modules-lists/modules.list.msm.lahaina
++++ b/modules-lists/modules.list.msm.lahaina
+@@ -71,6 +71,7 @@ msm_dma_iommu_mapping.ko
+ qcom_dma_heaps.ko
+ qseecom_proxy.ko
+ ufshcd-crypto-qti.ko
++hwkm.ko
+ qcom_ice.ko
+ ufs-qcom.ko
+ phy-qcom-ufs-qmp-v4-yupik.ko
+-- 
+2.43.0
+
