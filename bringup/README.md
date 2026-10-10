@@ -69,6 +69,11 @@ Shows colour bars on the panel with plain KMS ioctls. With `msm_drm.ko`
 loaded and `/dev/dri/card0` made (`mknod /dev/dri/card0 c 226 0`), it
 takes the DSI connector's first mode and puts the bars on screen.
 
+## kgslinfo.c
+
+Opens `/dev/kgsl-3d0`, which powers the GPU up, and prints what kgsl
+reports about it. Make the node from `/sys/class/kgsl/kgsl-3d0/dev` first.
+
 ## splashcon
 
 A module that draws the kernel log on the framebuffer the bootloader left on

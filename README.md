@@ -17,6 +17,7 @@ redwood added on top. It goes in the kernel platform tree as
 | UFS storage | works |
 | USB | works with the role forced to device |
 | Display | works: panel at 1080x2400 120 Hz with the 6.12 display driver |
+| GPU | works: Adreno 642L powers up with kgsl |
 | Android | not yet |
 | Shell over USB | yes, see bringup |
 
@@ -29,6 +30,15 @@ redwood added on top. It goes in the kernel platform tree as
   differ from Qualcomm's 6.12 map)
 - the PMR735A and the SD card controller disabled
 - a fixed ramoops region at `0xb0000000`
+
+## Vendor modules
+
+Build Qualcomm's vendor drivers against the lahaina config, not the GKI
+one: copy the kernel's modules_prepare output and put Kleaf's
+`lahaina_perf_config/out_dir/.config`, `include/generated/autoconf.h` and
+`include/config` in it. Against the GKI config, options like
+`CONFIG_QCOM_COMMAND_DB` are off, the soc-repo headers hand out stubs that
+always fail, and things like the GPU's RPMh tables quietly break.
 
 ## Display
 
@@ -50,6 +60,17 @@ make -C kernel_platform/common O=<modules_prepare out> M=<display-drivers> \
 `mm-drivers` from the same branch has to sit next to it for its headers,
 and `gendwarfksyms` needs `LD_LIBRARY_PATH` pointing at
 `prebuilts/kernel-build-tools/linux-x86/lib64`.
+
+## GPU
+
+`graphics-kernel` from `gfx-kernel.lnx.16.0.r14-rel` knows the Adreno 642L.
+Its devicetree comes from `graphics-devicetree`
+(`gfx-devicetree-oss.lnx.16.0.r8-rel`), whose `yupik-gpu.dtsi` is in
+`qcom/gpu/` as is. Apply [patches/graphics-kernel](patches/graphics-kernel)
+and build it like the display driver, with `KGSL_PATH` instead of
+`DISPLAY_ROOT` and the `mm-drivers` `hw_fence` and `sync_fence` headers in
+`SOCINCLUDE`. It needs `a660_sqe.fw`, `a660_gmu.bin` and `a660_zap.*` from
+`/vendor/firmware`.
 
 ## Building
 

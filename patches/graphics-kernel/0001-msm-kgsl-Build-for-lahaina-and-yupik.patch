@@ -1,0 +1,72 @@
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Subject: [PATCH] msm: kgsl: Build for lahaina and yupik
+
+Add a gki_lahaina.conf from lahaina_perf_gpuconf and include it for
+CONFIG_ARCH_LAHAINA and CONFIG_ARCH_YUPIK, put the soc-repo headers ahead
+of the common kernel's, as the display driver does, so qcom_scm.h and
+qcom-io-pgtable.h come from Qualcomm, and include linux/of.h in the
+Adreno TZ governor, which calls of_device_is_compatible().
+
+Applies to graphics-kernel gfx-kernel.lnx.16.0.r14-rel.
+---
+diff --git a/Kbuild b/Kbuild
+index 698747f..dd32006 100644
+--- a/Kbuild
++++ b/Kbuild
+@@ -1,5 +1,8 @@
+ # SPDX-License-Identifier: GPL-2.0-only
+ 
++# Qualcomm's headers (soc-repo) go before the common kernel's
++LINUXINCLUDE := $(SOCINCLUDE) $(LINUXINCLUDE)
++
+ KDIR := $(TOP)/kernel_platform/common
+ 
+ ifeq ($(KGSL_PATH),)
+@@ -13,6 +16,9 @@ ifeq ($(CONFIG_QTI_QUIN_GVM),)
+ 	endif
+ endif
+ 
++ifeq ($(or $(CONFIG_ARCH_LAHAINA), $(CONFIG_ARCH_YUPIK)), y)
++	include $(KGSL_PATH)/config/gki_lahaina.conf
++endif
+ ifeq ($(CONFIG_ARCH_WAIPIO), y)
+ 	include $(KGSL_PATH)/config/gki_waipiodisp.conf
+ endif
+diff --git a/config/gki_lahaina.conf b/config/gki_lahaina.conf
+new file mode 100644
+index 0000000..84b8fd8
+--- /dev/null
++++ b/config/gki_lahaina.conf
+@@ -0,0 +1,20 @@
++# SPDX-License-Identifier: GPL-2.0-only
++# Lahaina and Yupik, from lahaina_perf_gpuconf
++
++CONFIG_QCOM_KGSL_IDLE_TIMEOUT = 80
++CONFIG_QCOM_KGSL_SORT_POOL = y
++CONFIG_QCOM_KGSL_CONTEXT_DEBUG = y
++CONFIG_QCOM_KGSL_IOCOHERENCY_DEFAULT = y
++CONFIG_QCOM_ADRENO_DEFAULT_GOVERNOR = \"msm-adreno-tz\"
++CONFIG_QCOM_KGSL_POOL = y
++CONFIG_QCOM_KGSL_USE_SHMEM = y
++CONFIG_QCOM_KGSL_PROCESS_RECLAIM = y
++
++ccflags-y += -DCONFIG_QCOM_KGSL_IDLE_TIMEOUT=80 \
++		-DCONFIG_QCOM_KGSL_SORT_POOL=1 \
++		-DCONFIG_QCOM_KGSL_CONTEXT_DEBUG=1 \
++		-DCONFIG_QCOM_KGSL_IOCOHERENCY_DEFAULT=1 \
++		-DCONFIG_QCOM_ADRENO_DEFAULT_GOVERNOR=\"msm-adreno-tz\" \
++		-DCONFIG_QCOM_KGSL_POOL=1 \
++		-DCONFIG_QCOM_KGSL_USE_SHMEM=1 \
++		-DCONFIG_QCOM_KGSL_PROCESS_RECLAIM=1
+diff --git a/governor_msm_adreno_tz.c b/governor_msm_adreno_tz.c
+index 7b58719..2c8bba0 100644
+--- a/governor_msm_adreno_tz.c
++++ b/governor_msm_adreno_tz.c
+@@ -3,6 +3,7 @@
+  * Copyright (c) 2010-2021, The Linux Foundation. All rights reserved.
+  * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+  */
++#include <linux/of.h>
+ #include <linux/errno.h>
+ #include <linux/devfreq.h>
+ #include <linux/dma-mapping.h>
