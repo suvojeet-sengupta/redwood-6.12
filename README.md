@@ -18,6 +18,7 @@ redwood added on top. It goes in the kernel platform tree as
 | USB | works with the role forced to device |
 | Display | not yet |
 | Android | not yet |
+| Shell over USB | yes, see bringup |
 
 ## What redwood needs on top of Yupik IDP
 

@@ -30,12 +30,31 @@ Things to know about redwood:
 - The GKI kernel has no devtmpfs. The init has to `mknod` `/dev/kmsg` and the
   block devices it needs.
 
+## shell.c, rb.c, rsh.py
+
+The init used for most work now: everything usbtest.c does, then a toybox
+shell on TCP port 2323 over the USB network. The phone is `192.168.90.1`
+and `fe80::ff:fe61:2001`. It keeps running; `rb` in the shell reboots to
+the bootloader.
+
+toybox comes from `kernel_platform/external/toybox`, built static with the
+NDK compiler, `sh` turned on and `su`, `login`, `passwd` and `mkpasswd` turned
+off (bionic has no `crypt()`). `make install_flat PREFIX=<ramdisk>/bin` puts
+the links in place.
+
+From the computer:
+
+```
+python3 rsh.py <usb interface> "dmesg | tail"
+```
+
 ## usbtest.c
 
 Loads the first stage and vendor_dlkm modules, mounts `modem_a` for the
 firmware, starts the ADSP and sets up a USB ACM + NCM gadget. The ADSP boots
 and UCSI answers, but it never registers the cable partner, so the USB role
-stays at none. Writing `device` to
+stays at none: `GET_CONNECTOR_STATUS` from the ADSP says nothing is
+connected. Writing `device` to
 `/sys/class/usb_role/a600000.ssusb-role-switch/role` makes the phone show up
 on the computer as an ACM serial port and an NCM network adapter.
 
