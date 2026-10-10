@@ -5,8 +5,8 @@
  *
  *  - /sys/bus/msm_subsys/devices/subsysN with name and state, which
  *    libmdmdetect reads to find the modem (qcril gives up without it)
- *  - /dev/subsys_<name>: opening it boots the processor and closing it
- *    shuts it down again, which is how per_mgr brings the modem up
+ *  - /dev/subsys_<name>: opening it boots the processor, which is how
+ *    per_mgr brings the modem up; it keeps running after the last close
  *  - the ADSP and CDSP are booted once their firmware can be loaded, as
  *    the 5.4 loaders did, and every processor recovers from a crash
  *    instead of taking the phone down
@@ -133,9 +133,13 @@ static int subsys_release(struct inode *inode, struct file *file)
 {
 	struct subsys *s = file->private_data;
 
+	/*
+	 * Keep the processor running when the last user goes away: per_mgr
+	 * and pm-proxy reopen the node as they restart, and shutting the
+	 * modem down in between looks like a crash to everything else.
+	 */
 	mutex_lock(&s->lock);
-	if (!--s->users && s->rproc)
-		rproc_shutdown(s->rproc);
+	s->users--;
 	mutex_unlock(&s->lock);
 	return 0;
 }
