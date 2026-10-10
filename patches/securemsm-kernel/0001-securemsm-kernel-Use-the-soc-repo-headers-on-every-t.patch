@@ -1,0 +1,26 @@
+From ae69fdcb58690c6899341648b52115fda870b60d Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Sat, 10 Oct 2026 06:59:15 +0000
+Subject: [PATCH] securemsm-kernel: Use the soc-repo headers on every target
+
+Out of tree builds for lahaina need the soc-repo headers (qtee_shmbridge.h, mem-buf.h and friends), not just seraph.
+---
+ Kbuild | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/Kbuild b/Kbuild
+index 458ee01..e5debed 100644
+--- a/Kbuild
++++ b/Kbuild
+@@ -1,7 +1,4 @@
+-ifeq ($(TARGET_MACHINE), seraph)
+-LINUXINCLUDE := $(SOCINCLUDE) \
+-                $(LINUXINCLUDE)
+-endif
++LINUXINCLUDE := $(SOCINCLUDE) $(LINUXINCLUDE)
+ 
+ LINUXINCLUDE += -I$(SSG_MODULE_ROOT)/ \
+                 -I$(SSG_MODULE_ROOT)/linux/ \
+-- 
+2.43.0
+
