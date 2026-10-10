@@ -1,0 +1,62 @@
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Subject: [PATCH] disp: Build for lahaina and yupik again
+
+The lahaina config is still in the tree, but msm/Kbuild no longer picks it
+up. Wire it to CONFIG_ARCH_LAHAINA and CONFIG_ARCH_YUPIK, turn on the HFI
+adapter like bengal and monaco (it is needed to build, without the HFI
+core), and leave DP out for now.
+
+Applies to display-drivers display-kernel.lnx.12.13.r1-rel.
+---
+diff --git a/config/gki_lahainadisp.conf b/config/gki_lahainadisp.conf
+index fb7a980..ab02f50 100644
+--- a/config/gki_lahainadisp.conf
++++ b/config/gki_lahainadisp.conf
+@@ -2,11 +2,11 @@ export CONFIG_DRM_MSM=y
+ export CONFIG_DRM_MSM_SDE=y
+ export CONFIG_SYNC_FILE=y
+ export CONFIG_DRM_MSM_DSI=y
+-export CONFIG_DRM_MSM_DP=y
+-export CONFIG_DRM_MSM_DP_MST=y
+ export CONFIG_DSI_PARSER=y
+ export CONFIG_QCOM_MDSS_PLL=y
+ export CONFIG_DRM_SDE_WB=y
+ export CONFIG_DRM_MSM_REGISTER_LOGGING=y
+ export CONFIG_DRM_SDE_RSC=y
+ export CONFIG_DISPLAY_BUILD=m
++export CONFIG_MDSS_HFI_ADAPTER=y
++export CONFIG_MDSS_HFI=y
+diff --git a/config/gki_lahainadispconf.h b/config/gki_lahainadispconf.h
+index 6d7c158..f1c5694 100644
+--- a/config/gki_lahainadispconf.h
++++ b/config/gki_lahainadispconf.h
+@@ -7,8 +7,6 @@
+ #define CONFIG_DRM_MSM_SDE 1
+ #define CONFIG_SYNC_FILE 1
+ #define CONFIG_DRM_MSM_DSI 1
+-#define CONFIG_DRM_MSM_DP 1
+-#define CONFIG_DRM_MSM_DP_MST 1
+ #define CONFIG_DSI_PARSER 1
+ #define CONFIG_DRM_SDE_WB 1
+ #define CONFIG_DRM_MSM_REGISTER_LOGGING 1
+@@ -17,3 +15,5 @@
+ #define CONFIG_GKI_DISPLAY 1
+ #define CONFIG_DRM_SDE_RSC 1
+ 
++#define CONFIG_MDSS_HFI_ADAPTER 1
++#define CONFIG_MDSS_HFI 1
+diff --git a/msm/Kbuild b/msm/Kbuild
+index 7b33579..8ddf636 100644
+--- a/msm/Kbuild
++++ b/msm/Kbuild
+@@ -3,6 +3,10 @@
+ #TODO: check with Techteam PoC on why we need it here
+ #KDIR := $(TOP)/kernel_platform/soc-repo
+ 
++ifeq ($(or $(CONFIG_ARCH_LAHAINA), $(CONFIG_ARCH_YUPIK)), y)
++	include $(DISPLAY_ROOT)/config/gki_lahainadisp.conf
++	LINUX_INC += -include $(DISPLAY_ROOT)/config/gki_lahainadispconf.h
++endif
+ ifeq ($(CONFIG_ARCH_WAIPIO), y)
+ ifeq ($(CONFIG_ARCH_QTI_VM), y)
+ 	include $(DISPLAY_ROOT)/config/gki_waipiodisptui.conf

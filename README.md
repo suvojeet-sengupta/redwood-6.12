@@ -16,7 +16,7 @@ redwood added on top. It goes in the kernel platform tree as
 | First stage modules (91) | load |
 | UFS storage | works |
 | USB | works with the role forced to device |
-| Display | not yet |
+| Display | works: panel at 1080x2400 120 Hz with the 6.12 display driver |
 | Android | not yet |
 | Shell over USB | yes, see bringup |
 
@@ -29,6 +29,27 @@ redwood added on top. It goes in the kernel platform tree as
   differ from Qualcomm's 6.12 map)
 - the PMR735A and the SD card controller disabled
 - a fixed ramoops region at `0xb0000000`
+
+## Display
+
+Qualcomm's 6.12 display devicetree has no Yupik, so `qcom/display/` ports
+it from the 5.4 kernel, along with redwood's two M20 panels. The driver is
+`display-drivers` from `display-kernel.lnx.12.13.r1-rel`, which still knows
+SDE 7.2 (Yupik), with
+[patches/display-drivers](patches/display-drivers) applied. Build it
+against the kernel's modules_prepare output:
+
+```
+make -C kernel_platform/common O=<modules_prepare out> M=<display-drivers> \
+	ARCH=arm64 LLVM=1 LLVM_IAS=1 DISPLAY_ROOT=<display-drivers> \
+	CONFIG_ARCH_LAHAINA=y CONFIG_ARCH_YUPIK=y CONFIG_DRM_MSM=m \
+	KBUILD_EXTRA_SYMBOLS=<soc-repo module symvers> \
+	SOCINCLUDE="-I<soc-repo>/include -I<soc-repo>/include/uapi" modules
+```
+
+`mm-drivers` from the same branch has to sit next to it for its headers,
+and `gendwarfksyms` needs `LD_LIBRARY_PATH` pointing at
+`prebuilts/kernel-build-tools/linux-x86/lib64`.
 
 ## Building
 

@@ -63,8 +63,14 @@ on the computer as an ACM serial port and an NCM network adapter.
 Sets up a USB NCM and ACM gadget and serves the kernel log on TCP port 2323.
 Superseded by usbtest.c.
 
+## kmsbars.c
+
+Shows colour bars on the panel with plain KMS ioctls. With `msm_drm.ko`
+loaded and `/dev/dri/card0` made (`mknod /dev/dri/card0 c 226 0`), it
+takes the DSI connector's first mode and puts the bars on screen.
+
 ## splashcon
 
 A module that draws the kernel log on the framebuffer the bootloader left on
 screen. It finds the scanout buffer from the display pipe registers, but the
-picture doesn't change yet.
+picture doesn't change. Not needed any more now that the display driver works.
