@@ -74,6 +74,11 @@ takes the DSI connector's first mode and puts the bars on screen.
 Opens `/dev/kgsl-3d0`, which powers the GPU up, and prints what kgsl
 reports about it. Make the node from `/sys/class/kgsl/kgsl-3d0/dev` first.
 
+## evdump.c
+
+Prints finger down/up and X/Y from an evdev node, to check the
+touchscreen.
+
 ## splashcon
 
 A module that draws the kernel log on the framebuffer the bootloader left on

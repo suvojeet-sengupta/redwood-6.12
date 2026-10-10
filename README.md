@@ -18,6 +18,7 @@ redwood added on top. It goes in the kernel platform tree as
 | USB | works with the role forced to device |
 | Display | works: panel at 1080x2400 120 Hz with the 6.12 display driver |
 | GPU | works: Adreno 642L powers up with kgsl |
+| Touch | works: Goodix Berlin-D with the mainline goodix_berlin driver |
 | Android | not yet |
 | Shell over USB | yes, see bringup |
 
@@ -71,6 +72,14 @@ and build it like the display driver, with `KGSL_PATH` instead of
 `DISPLAY_ROOT` and the `mm-drivers` `hw_fence` and `sync_fence` headers in
 `SOCINCLUDE`. It needs `a660_sqe.fw`, `a660_gmu.bin` and `a660_zap.*` from
 `/vendor/firmware`.
+
+## Touch
+
+redwood's Goodix Berlin-D works with the mainline `goodix_berlin` driver
+from `kernel_platform/common/drivers/input/touchscreen`. GKI doesn't build
+it, so build `goodix_berlin_core.c` and `goodix_berlin_spi.c` out of tree
+with `obj-m += goodix_berlin_core.o goodix_berlin_spi.o`. The device tree
+is in `qcom/redwood-touch.dtsi`.
 
 ## Building
 
