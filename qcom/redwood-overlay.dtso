@@ -80,3 +80,11 @@
 &sdhc_2 {
 	status = "disabled";
 };
+
+/* The display RSC finds its RPMh controller through this */
+&disp_rsc_drv0 {
+	sde_rsc_rpmh {
+		compatible = "qcom,sde-rsc-rpmh";
+		cell-index = <0>;
+	};
+};
