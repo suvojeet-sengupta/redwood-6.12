@@ -17,3 +17,21 @@
 	qcom,msm-id = <475 0x10000>, <515 0x10000>;
 	qcom,board-id = <0x1000B 0>;
 };
+
+/*
+ * Keep the console log where the 5.4 kernel keeps it, so a 6.12 boot that
+ * goes wrong can still be read from /sys/fs/pstore after booting 5.4.
+ */
+&reserved_memory {
+	ramoops@b0000000 {
+		compatible = "ramoops";
+		reg = <0x0 0xb0000000 0x0 0x400000>;
+		console-size = <0x200000>;
+		pmsg-size = <0x200000>;
+		mem-type = <2>;
+	};
+};
+
+&{/soc/qcom_ramoops} {
+	status = "disabled";
+};
