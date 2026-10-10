@@ -1,0 +1,467 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/iio/qcom,spmi-vadc.h>
+#include <dt-bindings/interconnect/qcom,yupik.h>
+
+#include "yupik-pmic-overlay.dtsi"
+#include "pm7250b.dtsi"
+#include "yupik-pm7250b-thermal-overlay.dtsi"
+
+/*==============================*/
+/*     UFS Related Start        */
+/*==============================*/
+&ufsphy_mem {
+	compatible = "qcom,ufs-phy-qmp-v4-yupik";
+
+	vdda-phy-supply = <&L10C>;
+	vdda-pll-supply = <&L6B>;
+	vdda-phy-max-microamp = <97500>;
+	vdda-pll-max-microamp = <18400>;
+
+	status = "ok";
+};
+
+&ufshc_mem {
+	vdd-hba-supply = <&gcc_ufs_phy_gdsc>;
+	vdd-hba-fixed-regulator;
+
+	vcc-supply = <&L7B>;
+	vcc-voltage-level = <2504000 2952000>;
+	vcc-low-voltage-sup;
+	vcc-max-microamp = <800000>;
+
+	/*
+	 * Yupik target supports both UFS2.2 & UFS3.1, here
+	 * vccq2 is supplied via eLDO, and that is controlled via
+	 * L9B which supports a max voltage of 1.2V, but eLDO would
+	 * supply 1.8V. and same L9B acts as vccq voltage for UFS3.1
+	 * devices.
+	 * Here L9B can max support for 1.2V but UFS GKI driver code
+	 * votes for 1.8V, which is leading to failure from pmic
+	 * regulator.
+	 *
+	 * Now since vccq and control of eLDO are common that is L9B
+	 * we can use vccq vote as control of eLDO for vccq2.
+	 * Hence vccq entries shall be used for both type of UFS
+	 * devices only. And vccq entries should not be changed/removed
+	 * for any design alteration.
+	 */
+	vccq-supply = <&L9B>;
+	vccq-max-microamp = <900000>;
+	vccq-min-microamp = <10000>;
+
+	qcom,vddp-ref-clk-supply = <&L9B>;
+	qcom,vddp-ref-clk-max-microamp = <100>;
+
+	status = "ok";
+
+};
+
+/*==============================*/
+/*     UFS Related End          */
+/*==============================*/
+&tlmm {
+	qcom,reserved-dt-high-priority = <1>;
+	qcom,gpios-reserved = <32 33>;
+};
+
+&spmi_glink_debug {
+	spmi@0 {
+		qcom,pm8350b-debug@3 {
+			status = "disabled";
+		};
+
+		qcom,pm7250b-debug@8 {
+			compatible = "qcom,spmi-pmic";
+			reg = <8 SPMI_USID>;
+			qcom,can-sleep;
+		};
+	};
+
+};
+
+&spmi_debug_bus {
+	qcom,pm8350b-debug@3 {
+		status = "disabled";
+	};
+
+	qcom,pm7250b-debug@8 {
+		compatible = "qcom,spmi-pmic";
+		reg = <8 SPMI_USID>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+		qcom,can-sleep;
+	};
+
+	qcom,pm7250b-debug@9 {
+		compatible = "qcom,spmi-pmic";
+		reg = <9 SPMI_USID>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+		qcom,can-sleep;
+	};
+
+};
+
+&pm7250b_2 {
+	/* Slave ID - 8 */
+	reg = <8 SPMI_USID>;
+};
+
+&pm7250b_3 {
+	/* Slave ID - 9 */
+	reg = <9 SPMI_USID>;
+};
+
+&pm7250b_tz {
+	interrupts = <0x8 0x24 0x0 IRQ_TYPE_EDGE_BOTH>;
+};
+
+&pm7250b_bcl {
+	interrupts = <0x8 0x1d 0x0 IRQ_TYPE_NONE>,
+			<0x8 0x1d 0x1 IRQ_TYPE_NONE>,
+			<0x8 0x1d 0x2 IRQ_TYPE_NONE>;
+};
+
+&pm7250b_clkdiv {
+	clocks = <&rpmhcc RPMH_CXO_CLK>;
+};
+
+&pm7250b_charger {
+	status = "disabled";
+};
+
+&pm7250b_qg {
+	status = "disabled";
+};
+
+&pm7250b_pdphy {
+	status = "disabled";
+};
+
+&pmk8350_sdam_23 {
+	adc_scaling: scaling@bf {
+		reg = <0xbf 0x1>;
+		bits = <0 2>;
+	};
+};
+
+&spmi_debug_bus {
+	status = "ok";
+};
+
+&spmi_glink_debug {
+	status = "ok";
+};
+
+&pm8350c_pwm {
+	status = "disabled";
+};
+
+&pm8350c_switch0 {
+	qcom,led-mask = <9>; /* Channels 1 & 4 */
+	qcom,symmetry-en;
+};
+
+&pm8350c_switch1 {
+	qcom,led-mask = <6>; /* Channels 2 & 3 */
+	qcom,symmetry-en;
+};
+
+&pm8350c_switch2 {
+	qcom,led-mask = <15>; /* All Channels */
+	qcom,symmetry-en;
+};
+
+&pm8350c_flash {
+	status = "ok";
+};
+
+&battery_charger {
+	status = "disabled";
+
+};
+
+/*==============================*/
+/*     USB Related Start        */
+/*==============================*/
+&usb0 {
+	port {
+		usb_port0: endpoint {
+			remote-endpoint = <&usb_port0_connector>;
+		};
+	};
+};
+
+&ucsi {
+	connector {
+		compatible = "usb-c-connector";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				usb_port0_connector: endpoint {
+					remote-endpoint = <&usb_port0>;
+				};
+			};
+		};
+	};
+};
+
+
+&fsa4480 {
+	status = "disabled";
+};
+
+/*==============================*/
+/*     USB Related End          */
+/*==============================*/
+/*==============================*/
+/*     Unwanted Modules Start   */
+/*==============================*/
+
+&modem_pas {
+	status = "disabled";
+};
+
+&pil_mpss_mem {
+	status = "disabled";
+};
+
+/*==============================*/
+/*     Unwanted Modules End     */
+/*==============================*/
+/*==============================*/
+/*     PCIe Related Start       */
+/*==============================*/
+
+&soc {
+	rtl8111h_3v3_vreg: rtl8111h_3v3_vreg {
+		compatible = "regulator-fixed";
+		regulator-name = "rtl8111h_3v3_vreg";
+		gpio = <&tlmm 106 0>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-enable-ramp-delay = <10000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	rtl8111h_isolate_vreg: rtl8111h_isolate_vreg {
+		compatible = "regulator-fixed";
+		regulator-name = "rtl8111h_isolate_vreg";
+		gpio = <&tlmm 105 0>;
+		vin-supply = <&rtl8111h_3v3_vreg>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+};
+
+&pcie0 {
+	status = "ok";
+};
+
+&pcie0_msi {
+	status = "ok";
+};
+
+&pcie1 {
+	status = "ok";
+	qcom,boot-option = <0x0>;
+};
+
+&pcie1_msi {
+	status = "ok";
+};
+
+/*==============================*/
+/*     PCIe Related End         */
+/*==============================*/
+
+&qupv3_se1_i2c {
+	status = "ok";
+
+	cap1296@28 {
+		compatible = "microchip,cap1296";
+		status = "ok";
+		reg = <0x28>;
+		vddio-supply = <&L12C>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <54 0>;
+		irq-gpio = <&tlmm 54 GPIO_ACTIVE_LOW>;
+	};
+
+	aw20072_led@3a {
+		compatible = "awinic,aw20072";
+		status = "ok";
+		reg = <0x3a>;
+		enable-gpios = <&tlmm 53 GPIO_ACTIVE_HIGH>;
+
+		/* Board-level defaults (whole ring), handled by leds-aw200xx.c */
+		awinic,boot-mode = "solid";        /* off | solid | breath */
+		awinic,boot-color = "blue";       /* white | red | green | blue */
+		awinic,boot-brightness = <255>;    /* 0..255 */
+		/* Optional for breath mode */
+		awinic,breath-interval-ms = <20>;  /* default 20 */
+		awinic,breath-step = <5>;          /* default 5 */
+
+		led@0  { reg = <0>;  label = "aw20072:led0";  led-max-microamp = <20000>; };
+
+		led@1  { reg = <1>;  label = "aw20072:led1";  led-max-microamp = <20000>; };
+
+		led@2  { reg = <2>;  label = "aw20072:led2";  led-max-microamp = <20000>; };
+
+		led@3  { reg = <3>;  label = "aw20072:led3";  led-max-microamp = <20000>; };
+
+		led@4  { reg = <4>;  label = "aw20072:led4";  led-max-microamp = <20000>; };
+
+		led@5  { reg = <5>;  label = "aw20072:led5";  led-max-microamp = <20000>; };
+
+		led@6  { reg = <6>;  label = "aw20072:led6";  led-max-microamp = <20000>; };
+
+		led@7  { reg = <7>;  label = "aw20072:led7";  led-max-microamp = <20000>; };
+
+		led@8  { reg = <8>;  label = "aw20072:led8";  led-max-microamp = <20000>; };
+
+		led@9  { reg = <9>;  label = "aw20072:led9";  led-max-microamp = <20000>; };
+
+		led@10 { reg = <10>; label = "aw20072:led10"; led-max-microamp = <20000>; };
+
+		led@11 { reg = <11>; label = "aw20072:led11"; led-max-microamp = <20000>; };
+
+		led@12 { reg = <12>; label = "aw20072:led12"; led-max-microamp = <20000>; };
+
+		led@13 { reg = <13>; label = "aw20072:led13"; led-max-microamp = <20000>; };
+
+		led@14 { reg = <14>; label = "aw20072:led14"; led-max-microamp = <20000>; };
+
+		led@15 { reg = <15>; label = "aw20072:led15"; led-max-microamp = <20000>; };
+
+		led@16 { reg = <16>; label = "aw20072:led16"; led-max-microamp = <20000>; };
+
+		led@17 { reg = <17>; label = "aw20072:led17"; led-max-microamp = <20000>; };
+
+		led@18 { reg = <18>; label = "aw20072:led18"; led-max-microamp = <20000>; };
+
+		led@19 { reg = <19>; label = "aw20072:led19"; led-max-microamp = <20000>; };
+
+		led@20 { reg = <20>; label = "aw20072:led20"; led-max-microamp = <20000>; };
+
+		led@21 { reg = <21>; label = "aw20072:led21"; led-max-microamp = <20000>; };
+
+		led@22 { reg = <22>; label = "aw20072:led22"; led-max-microamp = <20000>; };
+
+		led@23 { reg = <23>; label = "aw20072:led23"; led-max-microamp = <20000>; };
+
+		led@24 { reg = <24>; label = "aw20072:led24"; led-max-microamp = <20000>; };
+
+		led@25 { reg = <25>; label = "aw20072:led25"; led-max-microamp = <20000>; };
+
+		led@26 { reg = <26>; label = "aw20072:led26"; led-max-microamp = <20000>; };
+
+		led@27 { reg = <27>; label = "aw20072:led27"; led-max-microamp = <20000>; };
+
+		led@28 { reg = <28>; label = "aw20072:led28"; led-max-microamp = <20000>; };
+
+		led@29 { reg = <29>; label = "aw20072:led29"; led-max-microamp = <20000>; };
+
+		led@30 { reg = <30>; label = "aw20072:led30"; led-max-microamp = <20000>; };
+
+		led@31 { reg = <31>; label = "aw20072:led31"; led-max-microamp = <20000>; };
+
+		led@32 { reg = <32>; label = "aw20072:led32"; led-max-microamp = <20000>; };
+
+		led@33 { reg = <33>; label = "aw20072:led33"; led-max-microamp = <20000>; };
+
+		led@34 { reg = <34>; label = "aw20072:led34"; led-max-microamp = <20000>; };
+
+		led@35 { reg = <35>; label = "aw20072:led35"; led-max-microamp = <20000>; };
+
+		led@36 { reg = <36>; label = "aw20072:led36"; led-max-microamp = <20000>; };
+
+		led@37 { reg = <37>; label = "aw20072:led37"; led-max-microamp = <20000>; };
+
+		led@38 { reg = <38>; label = "aw20072:led38"; led-max-microamp = <20000>; };
+
+		led@39 { reg = <39>; label = "aw20072:led39"; led-max-microamp = <20000>; };
+
+		led@40 { reg = <40>; label = "aw20072:led40"; led-max-microamp = <20000>; };
+
+		led@41 { reg = <41>; label = "aw20072:led41"; led-max-microamp = <20000>; };
+
+		led@42 { reg = <42>; label = "aw20072:led42"; led-max-microamp = <20000>; };
+
+		led@43 { reg = <43>; label = "aw20072:led43"; led-max-microamp = <20000>; };
+
+		led@44 { reg = <44>; label = "aw20072:led44"; led-max-microamp = <20000>; };
+
+		led@45 { reg = <45>; label = "aw20072:led45"; led-max-microamp = <20000>; };
+
+		led@46 { reg = <46>; label = "aw20072:led46"; led-max-microamp = <20000>; };
+
+		led@47 { reg = <47>; label = "aw20072:led47"; led-max-microamp = <20000>; };
+
+		led@48 { reg = <48>; label = "aw20072:led48"; led-max-microamp = <20000>; };
+
+		led@49 { reg = <49>; label = "aw20072:led49"; led-max-microamp = <20000>; };
+
+		led@50 { reg = <50>; label = "aw20072:led50"; led-max-microamp = <20000>; };
+
+		led@51 { reg = <51>; label = "aw20072:led51"; led-max-microamp = <20000>; };
+
+		led@52 { reg = <52>; label = "aw20072:led52"; led-max-microamp = <20000>; };
+
+		led@53 { reg = <53>; label = "aw20072:led53"; led-max-microamp = <20000>; };
+
+		led@54 { reg = <54>; label = "aw20072:led54"; led-max-microamp = <20000>; };
+
+		led@55 { reg = <55>; label = "aw20072:led55"; led-max-microamp = <20000>; };
+
+		led@56 { reg = <56>; label = "aw20072:led56"; led-max-microamp = <20000>; };
+
+		led@57 { reg = <57>; label = "aw20072:led57"; led-max-microamp = <20000>; };
+
+		led@58 { reg = <58>; label = "aw20072:led58"; led-max-microamp = <20000>; };
+
+		led@59 { reg = <59>; label = "aw20072:led59"; led-max-microamp = <20000>; };
+
+		led@60 { reg = <60>; label = "aw20072:led60"; led-max-microamp = <20000>; };
+
+		led@61 { reg = <61>; label = "aw20072:led61"; led-max-microamp = <20000>; };
+
+		led@62 { reg = <62>; label = "aw20072:led62"; led-max-microamp = <20000>; };
+
+		led@63 { reg = <63>; label = "aw20072:led63"; led-max-microamp = <20000>; };
+
+		led@64 { reg = <64>; label = "aw20072:led64"; led-max-microamp = <20000>; };
+
+		led@65 { reg = <65>; label = "aw20072:led65"; led-max-microamp = <20000>; };
+
+		led@66 { reg = <66>; label = "aw20072:led66"; led-max-microamp = <20000>; };
+
+		led@67 { reg = <67>; label = "aw20072:led67"; led-max-microamp = <20000>; };
+
+		led@68 { reg = <68>; label = "aw20072:led68"; led-max-microamp = <20000>; };
+
+		led@69 { reg = <69>; label = "aw20072:led69"; led-max-microamp = <20000>; };
+
+		led@70 { reg = <70>; label = "aw20072:led70"; led-max-microamp = <20000>; };
+
+		led@71 { reg = <71>; label = "aw20072:led71"; led-max-microamp = <20000>; };
+	};
+};
+
+
