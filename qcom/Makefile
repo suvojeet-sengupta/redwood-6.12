@@ -377,7 +377,8 @@ NOAPQ_YUPIK_BOARDS += \
 		yupik-idp-pm7250b-overlay.dtbo \
 		yupik-idps-amoled-overlay.dtbo \
 		yupik-atp-overlay.dtbo \
-		yupik-idp-hsp-overlay.dtbo
+		yupik-idp-hsp-overlay.dtbo \
+		redwood-overlay.dtbo
 
 lahaina-dtb-$(CONFIG_ARCH_YUPIK) += \
 	$(call add-overlays, $(NOAPQ_YUPIK_BOARDS),$(YUPIK_BASE_DTB)) \

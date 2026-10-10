@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Xiaomi Redmi Note 12 Pro 5G / POCO X5 Pro 5G (redwood)
+ *
+ * Starts from Qualcomm's Yupik IDP board, which the 5.4 redwood device
+ * tree was also built on.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "yupik-idp.dtsi"
+
+/ {
+	model = "Xiaomi redwood (SM7325)";
+	compatible = "xiaomi,redwood", "qcom,yupik-idp", "qcom,yupik", "qcom,idp";
+	qcom,msm-id = <475 0x10000>, <515 0x10000>;
+	qcom,board-id = <0x1000B 0>;
+};
