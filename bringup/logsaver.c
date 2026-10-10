@@ -12,6 +12,8 @@
 #include <string.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
+#include <sys/syscall.h>
+#include <linux/reboot.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <time.h>
@@ -66,10 +68,11 @@ static int find_logdump(void)
  * DMA-BUF heaps over the vendor's, in init's mount namespace. It only
  * lives in RAM; the vendor partition stays as it is.
  */
-static int shim_fd[2] = { -1, -1 };
-static const char *shim_src[2] = { "/ionshim64.so", "/ionshim32.so" };
-static const char *shim_tmp[2] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so" };
-static const char *shim_dst[2] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so" };
+static int shim_fd[3] = { -1, -1, -1 };
+/* fstab.test mounts /data read-only, so a broken key setup can't write to it */
+static const char *shim_src[3] = { "/ionshim64.so", "/ionshim32.so", "/fstab.test" };
+static const char *shim_tmp[3] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so", "/dev/.fstab.test" };
+static const char *shim_dst[3] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so", "/vendor/etc/fstab.default" };
 
 static int place_shims(int wfd)
 {
@@ -88,24 +91,29 @@ static int place_shims(int wfd)
 			dprintf(wfd, "<3>logsaver: can't enter init's mounts: %d\n", errno);
 			_exit(1);
 		}
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < 3; i++) {
 			char b[65536];
 			ssize_t n;
 			off_t off = 0;
 			int out = open(shim_tmp[i], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 
-			if (out < 0 || shim_fd[i] < 0)
+			if (out < 0 || shim_fd[i] < 0) {
+				if (i == 2)
+					goto unsafe;
 				continue;
+			}
 			while ((n = pread(shim_fd[i], b, sizeof(b), off)) > 0) {
 				if (write(out, b, n) != n)
 					break;
 				off += n;
 			}
 			close(out);
-			if (mount(shim_tmp[i], shim_dst[i], NULL, MS_BIND, NULL))
+			if (mount(shim_tmp[i], shim_dst[i], NULL, MS_BIND, NULL)) {
 				dprintf(wfd, "<3>logsaver: bind %s failed: %d\n", shim_dst[i], errno);
-			else
-				dprintf(wfd, "<6>logsaver: libion shim on %s\n", shim_dst[i]);
+				if (i == 2)
+					goto unsafe;
+			} else
+				dprintf(wfd, "<6>logsaver: %s on %s\n", shim_src[i], shim_dst[i]);
 		}
 		/* the vendor's ueventd.rc only opens up the AOSP heaps */
 		{
@@ -131,6 +139,13 @@ static int place_shims(int wfd)
 			}
 		}
 		_exit(0);
+unsafe:
+		/* never let /data get mounted writable during these tests */
+		dprintf(wfd, "<3>logsaver: no read-only fstab, rebooting to the bootloader\n");
+		sync();
+		syscall(SYS_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2,
+			LINUX_REBOOT_CMD_RESTART2, "bootloader");
+		_exit(1);
 	}
 	if (pid < 0)
 		return 0;
@@ -161,6 +176,7 @@ static void saver(void)
 	used = snprintf(buf, sizeof(buf), "REDWOOD612ANDROID\n");
 	shim_fd[0] = open(shim_src[0], O_RDONLY | O_CLOEXEC);
 	shim_fd[1] = open(shim_src[1], O_RDONLY | O_CLOEXEC);
+	shim_fd[2] = open(shim_src[2], O_RDONLY | O_CLOEXEC);
 	int shimmed = 0;
 
 	/* write new kernel log as soon as it shows up, so that the last
