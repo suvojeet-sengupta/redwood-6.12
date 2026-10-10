@@ -6,7 +6,7 @@
 #include "dsi-panel-m20-42-0d-0b-dsc-vid.dtsi"
 
 &mdss_mdp {
-	connectors = <&smmu_sde_unsec &smmu_sde_sec &sde_wb &sde_dsi &sde_rscc>;
+	connectors = <&smmu_sde_unsec &sde_wb &sde_dsi &sde_rscc>;
 };
 
 &soc {
@@ -179,4 +179,12 @@
 			qcom,default-topology-index = <0>;
 		};
 	};
+};
+
+/*
+ * Setting up the secure display context bank hangs on redwood's firmware
+ * with the 6.12 driver; leave secure display out until that is understood.
+ */
+&smmu_sde_sec {
+	status = "disabled";
 };
