@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * redwood's Goodix Berlin-D touch controller on SE13 SPI, for the mainline
+ * goodix_berlin driver. Pins and supplies are the ones the 5.4 device tree
+ * uses for "goodix,brl-d".
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&soc {
+	/* The touch AVDD is a load switch enabled by GPIO 107 */
+	ts_avdd: ts-avdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "ts_avdd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&tlmm 107 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+	};
+};
+
+&qupv3_se13_spi {
+	status = "ok";
+
+	touchscreen@0 {
+		compatible = "goodix,gt9916";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <81 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 105 GPIO_ACTIVE_LOW>;
+
+		avdd-supply = <&ts_avdd>;
+		vddio-supply = <&L2C>;
+
+		/* The controller reports ten times the panel resolution */
+		touchscreen-size-x = <10800>;
+		touchscreen-size-y = <24000>;
+	};
+};

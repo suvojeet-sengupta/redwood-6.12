@@ -17,6 +17,7 @@
 #include <dt-bindings/clock/qcom,aop-qmp.h>
 #include "gpu/yupik-gpu.dtsi"
 #include "gpu/yupik-gpu-pwrlevels.dtsi"
+#include "redwood-touch.dtsi"
 
 / {
 	model = "Xiaomi redwood (SM7325)";
