@@ -1,4 +1,4 @@
-#include "redwood-audio/yupik-audio-overlay.dtsi"
+#include "yupik-audio-overlay.dtsi"
 
 &yupik_snd {
 	qcom,wcn-bt = <1>;
