@@ -10,6 +10,8 @@ redwood added on top. It goes in the kernel platform tree as
 
 ## Status
 
+The detailed checklist is in [STATUS.md](STATUS.md).
+
 | | |
 |---|---|
 | Kernel boots | yes |

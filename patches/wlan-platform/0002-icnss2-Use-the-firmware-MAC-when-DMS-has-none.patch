@@ -1,0 +1,42 @@
+From 32b8f6d43be07940ecb919543c65492f51ab9e5b Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Sun, 11 Oct 2026 19:30:13 +0000
+Subject: [PATCH] icnss2: Use the firmware MAC when DMS has none
+
+redwood marks the NV MAC as mandatory (use-nv-mac), and icnss2 hits
+ICNSS_ASSERT(), a BUG(), when the modem's DMS service never answers. That
+resets the phone whenever WLAN starts without the modem running. Log it
+and let the firmware keep its own MAC instead.
+---
+ icnss2/main.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/icnss2/main.c b/icnss2/main.c
+index 08183cb..47ac109 100644
+--- a/icnss2/main.c
++++ b/icnss2/main.c
+@@ -1101,7 +1101,8 @@ static int icnss_setup_dms_mac(struct icnss_priv *priv)
+ 		goto qmi_send;
+ 
+ 	/* DTSI property use-nv-mac is used to force DMS MAC address for WLAN.
+-	 * Thus assert on failure to get MAC from DMS even after retries
++	 * Without the modem there is no DMS: carry on with the firmware MAC
++	 * instead of taking the whole system down.
+ 	 */
+ 	if (priv->use_nv_mac) {
+ 		for (i = 0; i < ICNSS_DMS_QMI_CONNECTION_WAIT_RETRY; i++) {
+@@ -1114,9 +1115,8 @@ static int icnss_setup_dms_mac(struct icnss_priv *priv)
+ 			msleep(ICNSS_DMS_QMI_CONNECTION_WAIT_MS);
+ 		}
+ 		if (!priv->dms.nv_mac_not_prov && !priv->dms.mac_valid) {
+-			icnss_pr_err("Unable to get MAC from DMS after retries\n");
+-			ICNSS_ASSERT(0);
+-			return -EINVAL;
++			icnss_pr_err("Unable to get MAC from DMS after retries, using the firmware MAC\n");
++			return 0;
+ 		}
+ 	}
+ qmi_send:
+-- 
+2.43.0
+
