@@ -116,7 +116,7 @@ extern struct log_cookie ctxt[MAX_SUPPORTED_INSTANCES];
 		if (is_print_allowed(sid, __level)) { \
 			if (msm_vidc_debug & VIDC_FTRACE) { \
 				char trace_logbuf[MAX_TRACER_LOG_LENGTH]; \
-				int log_length = snprintf(trace_logbuf, \
+				int log_length = scnprintf(trace_logbuf, \
 					MAX_TRACER_LOG_LENGTH, \
 					VIDC_DBG_TAG __fmt, \
 					get_debug_level_str(__level), \
@@ -162,7 +162,7 @@ extern struct log_cookie ctxt[MAX_SUPPORTED_INSTANCES];
 	do { \
 		if (__level & FW_FTRACE) { \
 			char trace_logbuf[MAX_TRACER_LOG_LENGTH]; \
-			int log_length = snprintf(trace_logbuf, \
+			int log_length = scnprintf(trace_logbuf, \
 				MAX_TRACER_LOG_LENGTH, \
 				FW_DBG_TAG __fmt, \
 				"fw", \

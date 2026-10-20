@@ -392,10 +392,11 @@ DECLARE_EVENT_CLASS(msm_v4l2_vidc_log,
 
 	TP_fast_assign(
 		__entry->length = length < MAX_TRACER_LOG_LENGTH ?
-						length  : MAX_TRACER_LOG_LENGTH;
+						length  : MAX_TRACER_LOG_LENGTH - 1;
 		__entry->dummy[0] = '\0';
 		if (__entry->length > 0) {
 			memcpy(__entry->dummy, dummy, __entry->length);
+			__entry->dummy[__entry->length] = '\0';
 			if (__entry->dummy[__entry->length - 1] == '\n')
 				__entry->dummy[__entry->length - 1] = '\0';
 		}
