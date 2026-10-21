@@ -135,7 +135,7 @@ static int hfi_process_sess_evt_seq_changed(u32 device_id,
 	}
 
 	if (num_properties_changed) {
-		data_ptr = (u8 *) &pkt->rg_ext_event_data[0];
+		data_ptr = (u8 *) &pkt->rg_ext_event_data_flex[0];
 		rem_size = pkt->size - sizeof(struct
 				hfi_msg_event_notify_packet) + sizeof(u32);
 		do {
@@ -334,7 +334,7 @@ static int hfi_process_evt_release_buffer_ref(u32 device_id,
 	}
 
 	data = (struct hfi_msg_release_buffer_ref_event_packet *)
-				pkt->rg_ext_event_data;
+				pkt->rg_ext_event_data_flex;
 	s_vpr_l(pkt->sid,
 		"RECEIVED: EVENT_NOTIFY - release_buffer_reference\n");
 
@@ -521,13 +521,13 @@ static void hfi_process_sess_get_prop_buf_req(
 	req_bytes = prop->size - sizeof(
 			struct hfi_msg_session_property_info_packet);
 	if (!req_bytes || req_bytes % sizeof(struct hfi_buffer_requirements) ||
-		!prop->rg_property_data[1]) {
+		!prop->rg_property_data_flex[1]) {
 		s_vpr_e(sid, "%s: bad_pkt: %d\n", __func__,	req_bytes);
 		return;
 	}
 
 	hfi_buf_req = (struct hfi_buffer_requirements *)
-		&prop->rg_property_data[1];
+		&prop->rg_property_data_flex[1];
 
 	if (!hfi_buf_req) {
 		s_vpr_e(sid, "%s: invalid buffer req pointer\n", __func__);
@@ -625,7 +625,7 @@ static int hfi_process_session_prop_info(u32 device_id,
 	}
 	s_vpr_h(pkt->sid, "Received SESSION_PROPERTY_INFO\n");
 
-	switch (pkt->rg_property_data[0]) {
+	switch (pkt->rg_property_data_flex[0]) {
 	case HFI_PROPERTY_CONFIG_BUFFER_REQUIREMENTS:
 		hfi_process_sess_get_prop_buf_req(pkt, &buff_req, pkt->sid);
 		cmd_done.device_id = device_id;
@@ -640,7 +640,7 @@ static int hfi_process_session_prop_info(u32 device_id,
 		return 0;
 	default:
 		s_vpr_h(pkt->sid, "%s: unknown_prop_id: %x\n",
-				__func__, pkt->rg_property_data[0]);
+				__func__, pkt->rg_property_data_flex[0]);
 		return -ENOTSUPP;
 	}
 }
@@ -1020,7 +1020,7 @@ static int hfi_process_session_rel_buf_done(u32 device_id,
 	cmd_done.size = sizeof(struct msm_vidc_cb_cmd_done);
 	cmd_done.inst_id = (void *)(uintptr_t)pkt->sid;
 	cmd_done.status = hfi_map_err_status(pkt->error_type);
-	cmd_done.data.buffer_info.buffer_addr = *pkt->rg_buffer_info;
+	cmd_done.data.buffer_info.buffer_addr = *pkt->rg_buffer_info_flex;
 	cmd_done.size = sizeof(struct hal_buffer_info);
 
 	info->response_type = HAL_SESSION_RELEASE_BUFFER_DONE;
@@ -1093,12 +1093,12 @@ static void hfi_process_sys_get_prop_image_version(
 
 	req_bytes = pkt->size - sizeof(*pkt);
 	if (req_bytes < version_string_size ||
-			!pkt->rg_property_data[1] ||
+			!pkt->rg_property_data_flex[1] ||
 			pkt->num_properties > 1) {
 		d_vpr_e("%s: bad_pkt: %d\n", __func__, req_bytes);
 		return;
 	}
-	str_image_version = (u8 *)&pkt->rg_property_data[1];
+	str_image_version = (u8 *)&pkt->rg_property_data_flex[1];
 	/*
 	 * The version string returned by firmware includes null
 	 * characters at the start and in between. Replace the null
@@ -1137,7 +1137,7 @@ static int hfi_process_sys_property_info(u32 device_id,
 		return -EINVAL;
 	}
 
-	switch (pkt->rg_property_data[0]) {
+	switch (pkt->rg_property_data_flex[0]) {
 	case HFI_PROPERTY_SYS_IMAGE_VERSION:
 		hfi_process_sys_get_prop_image_version(pkt);
 
@@ -1147,7 +1147,7 @@ static int hfi_process_sys_property_info(u32 device_id,
 		return 0;
 	default:
 		d_vpr_h("%s: unknown_prop_id: %x\n",
-				__func__, pkt->rg_property_data[0]);
+				__func__, pkt->rg_property_data_flex[0]);
 		return -ENOTSUPP;
 	}
 

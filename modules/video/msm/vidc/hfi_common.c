@@ -264,13 +264,13 @@ static void __sim_modify_cmd_packet(u8 *packet, struct venus_hfi_device *device)
 			pkt->buffer_type == HFI_BUFFER_OUTPUT2) {
 			struct hfi_buffer_info *buff;
 
-			buff = (struct hfi_buffer_info *) pkt->rg_buffer_info;
+			buff = (struct hfi_buffer_info *) pkt->rg_buffer_info_flex;
 			buff->buffer_addr -= fw_bias;
 			if (buff->extra_data_addr >= fw_bias)
 				buff->extra_data_addr -= fw_bias;
 		} else {
 			for (i = 0; i < pkt->num_buffers; i++)
-				pkt->rg_buffer_info[i] -= fw_bias;
+				pkt->rg_buffer_info_flex[i] -= fw_bias;
 		}
 		break;
 	}
@@ -283,12 +283,12 @@ static void __sim_modify_cmd_packet(u8 *packet, struct venus_hfi_device *device)
 			pkt->buffer_type == HFI_BUFFER_OUTPUT2) {
 			struct hfi_buffer_info *buff;
 
-			buff = (struct hfi_buffer_info *) pkt->rg_buffer_info;
+			buff = (struct hfi_buffer_info *) pkt->rg_buffer_info_flex;
 			buff->buffer_addr -= fw_bias;
 			buff->extra_data_addr -= fw_bias;
 		} else {
 			for (i = 0; i < pkt->num_buffers; i++)
-				pkt->rg_buffer_info[i] -= fw_bias;
+				pkt->rg_buffer_info_flex[i] -= fw_bias;
 		}
 		break;
 	}
@@ -2561,12 +2561,12 @@ static void print_sfr_message(struct venus_hfi_device *device)
 			return;
 		}
 		vsfr_size = vsfr->bufSize - sizeof(u32);
-		p = memchr(vsfr->rg_data, '\0', vsfr_size);
+		p = memchr(vsfr->rg_data_flex, '\0', vsfr_size);
 		/* SFR isn't guaranteed to be NULL terminated */
 		if (p == NULL)
-			vsfr->rg_data[vsfr_size - 1] = '\0';
+			vsfr->rg_data_flex[vsfr_size - 1] = '\0';
 
-		d_vpr_e("SFR Message from FW: %s\n", vsfr->rg_data);
+		d_vpr_e("SFR Message from FW: %s\n", vsfr->rg_data_flex);
 	}
 }
 
@@ -2630,8 +2630,8 @@ static void __flush_debug_queue(struct venus_hfi_device *device, u8 *packet)
 			 * from the message fixes this to print it in a single
 			 * line.
 			 */
-			pkt->rg_msg_data[pkt->msg_size-1] = '\0';
-			dprintk_firmware(log_level, "%s", &pkt->rg_msg_data[1]);
+			pkt->rg_msg_data_flex[pkt->msg_size-1] = '\0';
+			dprintk_firmware(log_level, "%s", &pkt->rg_msg_data_flex[1]);
 		}
 	}
 #undef SKIP_INVALID_PKT
@@ -3585,7 +3585,7 @@ static int __set_subcaches(struct venus_hfi_device *device, u32 sid)
 	memset((void *)resource, 0x0, (sizeof(u32) * VIDC_MAX_SUBCACHE_SIZE));
 
 	sc_res_info = (struct hfi_resource_syscache_info_type *)resource;
-	sc_res = &(sc_res_info->rg_subcache_entries[0]);
+	sc_res = &(sc_res_info->rg_subcache_entries_flex[0]);
 
 	venus_hfi_for_each_subcache(device, sinfo) {
 		if (sinfo->isactive) {
@@ -3643,7 +3643,7 @@ static int __release_subcaches(struct venus_hfi_device *device, u32 sid)
 	memset((void *)resource, 0x0, (sizeof(u32) * VIDC_MAX_SUBCACHE_SIZE));
 
 	sc_res_info = (struct hfi_resource_syscache_info_type *)resource;
-	sc_res = &(sc_res_info->rg_subcache_entries[0]);
+	sc_res = &(sc_res_info->rg_subcache_entries_flex[0]);
 
 	/* Release resource command to Venus */
 	venus_hfi_for_each_subcache_reverse(device, sinfo) {

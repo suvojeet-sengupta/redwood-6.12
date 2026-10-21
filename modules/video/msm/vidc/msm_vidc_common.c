@@ -7405,24 +7405,24 @@ int msm_comm_set_color_format_constraints(struct msm_vidc_inst *inst,
 	pconstraint->num_planes = pix_constraint->num_planes;
 	//set Y plan constraints
 	s_vpr_h(inst->sid, "Set Y plan constraints.\n");
-	pconstraint->rg_plane_format[0].stride_multiples =
+	pconstraint->rg_plane_format_flex[0].stride_multiples =
 			VENUS_Y_STRIDE(hfi_fmt, 1);
-	pconstraint->rg_plane_format[0].max_stride =
+	pconstraint->rg_plane_format_flex[0].max_stride =
 			pix_constraint->y_max_stride;
-	pconstraint->rg_plane_format[0].min_plane_buffer_height_multiple =
+	pconstraint->rg_plane_format_flex[0].min_plane_buffer_height_multiple =
 			VENUS_Y_SCANLINES(hfi_fmt, 1);
-	pconstraint->rg_plane_format[0].buffer_alignment =
+	pconstraint->rg_plane_format_flex[0].buffer_alignment =
 			pix_constraint->y_buffer_alignment;
 
 	//set UV plan constraints
 	s_vpr_h(inst->sid, "Set UV plan constraints.\n");
-	pconstraint->rg_plane_format[1].stride_multiples =
+	pconstraint->rg_plane_format_flex[1].stride_multiples =
 			VENUS_UV_STRIDE(hfi_fmt, 1);
-	pconstraint->rg_plane_format[1].max_stride =
+	pconstraint->rg_plane_format_flex[1].max_stride =
 			pix_constraint->uv_max_stride;
-	pconstraint->rg_plane_format[1].min_plane_buffer_height_multiple =
+	pconstraint->rg_plane_format_flex[1].min_plane_buffer_height_multiple =
 			VENUS_UV_SCANLINES(hfi_fmt, 1);
-	pconstraint->rg_plane_format[1].buffer_alignment =
+	pconstraint->rg_plane_format_flex[1].buffer_alignment =
 			pix_constraint->uv_buffer_alignment;
 
 	rc = call_hfi_op(hdev,

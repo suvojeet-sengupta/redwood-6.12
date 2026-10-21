@@ -764,7 +764,10 @@ struct hfi_resource_subcache_type {
 
 struct hfi_resource_syscache_info_type {
 	u32 num_entries;
-	struct hfi_resource_subcache_type rg_subcache_entries[1];
+	union {
+		struct hfi_resource_subcache_type rg_subcache_entries[1];
+		__DECLARE_FLEX_ARRAY(struct hfi_resource_subcache_type, rg_subcache_entries_flex);
+	};
 };
 
 struct hfi_property_sys_image_version_info_type {
@@ -875,7 +878,10 @@ struct hfi_cmd_sys_set_resource_packet {
 	u32 packet_type;
 	u32 resource_handle;
 	u32 resource_type;
-	u32 rg_resource_data[1];
+	union {
+		u32 rg_resource_data[1];
+		__DECLARE_FLEX_ARRAY(u32, rg_resource_data_flex);
+	};
 };
 
 struct hfi_cmd_sys_release_resource_packet {
@@ -889,14 +895,20 @@ struct hfi_cmd_sys_set_property_packet {
 	u32 size;
 	u32 packet_type;
 	u32 num_properties;
-	u32 rg_property_data[1];
+	union {
+		u32 rg_property_data[1];
+		__DECLARE_FLEX_ARRAY(u32, rg_property_data_flex);
+	};
 };
 
 struct hfi_cmd_sys_get_property_packet {
 	u32 size;
 	u32 packet_type;
 	u32 num_properties;
-	u32 rg_property_data[1];
+	union {
+		u32 rg_property_data[1];
+		__DECLARE_FLEX_ARRAY(u32, rg_property_data_flex);
+	};
 };
 
 struct hfi_cmd_sys_session_init_packet {
@@ -946,7 +958,10 @@ struct hfi_cmd_session_set_property_packet {
 	u32 packet_type;
 	u32 sid;
 	u32 num_properties;
-	u32 rg_property_data[1];
+	union {
+		u32 rg_property_data[1];
+		__DECLARE_FLEX_ARRAY(u32, rg_property_data_flex);
+	};
 };
 
 struct hfi_cmd_session_set_buffers_packet {
@@ -958,7 +973,10 @@ struct hfi_cmd_session_set_buffers_packet {
 	u32 extra_data_size;
 	u32 min_buffer_size;
 	u32 num_buffers;
-	u32 rg_buffer_info[1];
+	union {
+		u32 rg_buffer_info[1];
+		__DECLARE_FLEX_ARRAY(u32, rg_buffer_info_flex);
+	};
 };
 
 struct hfi_buffer_mapping_type {
@@ -974,7 +992,10 @@ struct hfi_msg_event_notify_packet {
 	u32 event_id;
 	u32 event_data1;
 	u32 event_data2;
-	u32 rg_ext_event_data[1];
+	union {
+		u32 rg_ext_event_data[1];
+		__DECLARE_FLEX_ARRAY(u32, rg_ext_event_data_flex);
+	};
 };
 
 struct hfi_msg_release_buffer_ref_event_packet {
@@ -1027,7 +1048,10 @@ struct hfi_msg_sys_debug_packet {
 	u32 msg_size;
 	u32 time_stamp_hi;
 	u32 time_stamp_lo;
-	u8 rg_msg_data[1];
+	union {
+		u8 rg_msg_data[1];
+		__DECLARE_FLEX_ARRAY(u8, rg_msg_data_flex);
+	};
 };
 
 struct hfi_msg_sys_coverage_packet {
@@ -1054,14 +1078,20 @@ enum HFI_VENUS_CTRL_INIT_STATUS {
 
 struct hfi_sfr_struct {
 	u32 bufSize;
-	u8 rg_data[1];
+	union {
+		u8 rg_data[1];
+		__DECLARE_FLEX_ARRAY(u8, rg_data_flex);
+	};
 };
 
 struct hfi_cmd_sys_test_ssr_packet {
 	u32 size;
 	u32 packet_type;
 	u32 trigger_type;
-	u32 rg_data[1];
+	union {
+		u32 rg_data[1];
+		__DECLARE_FLEX_ARRAY(u32, rg_data_flex);
+	};
 };
 
 struct hfi_hdr10_pq_sei {

@@ -96,8 +96,8 @@ int create_pkt_cmd_sys_debug_config(
 		sizeof(struct hfi_debug_config) + sizeof(u32);
 	pkt->packet_type = HFI_CMD_SYS_SET_PROPERTY;
 	pkt->num_properties = 1;
-	pkt->rg_property_data[0] = HFI_PROPERTY_SYS_DEBUG_CONFIG;
-	hfi = (struct hfi_debug_config *) &pkt->rg_property_data[1];
+	pkt->rg_property_data_flex[0] = HFI_PROPERTY_SYS_DEBUG_CONFIG;
+	hfi = (struct hfi_debug_config *) &pkt->rg_property_data_flex[1];
 	hfi->debug_config = mode;
 	hfi->debug_mode = HFI_DEBUG_MODE_QUEUE;
 	if (msm_vidc_fw_debug_mode
@@ -119,9 +119,9 @@ int create_pkt_cmd_sys_coverage_config(
 		sizeof(u32);
 	pkt->packet_type = HFI_CMD_SYS_SET_PROPERTY;
 	pkt->num_properties = 1;
-	pkt->rg_property_data[0] = HFI_PROPERTY_SYS_CONFIG_COVERAGE;
-	pkt->rg_property_data[1] = mode;
-	s_vpr_h(sid, "Firmware coverage mode %d\n", pkt->rg_property_data[1]);
+	pkt->rg_property_data_flex[0] = HFI_PROPERTY_SYS_CONFIG_COVERAGE;
+	pkt->rg_property_data_flex[1] = mode;
+	s_vpr_h(sid, "Firmware coverage mode %d\n", pkt->rg_property_data_flex[1]);
 	return 0;
 }
 
@@ -150,15 +150,15 @@ int create_pkt_cmd_sys_set_resource(
 			(struct hfi_resource_syscache_info_type *) res_value;
 		struct hfi_resource_subcache_type *res_sc =
 			(struct hfi_resource_subcache_type *)
-				&(res_sc_info->rg_subcache_entries[0]);
+				&(res_sc_info->rg_subcache_entries_flex[0]);
 
 		struct hfi_resource_syscache_info_type *hfi_sc_info =
 			(struct hfi_resource_syscache_info_type *)
-				&pkt->rg_resource_data[0];
+				&pkt->rg_resource_data_flex[0];
 
 		struct hfi_resource_subcache_type *hfi_sc =
 			(struct hfi_resource_subcache_type *)
-			&(hfi_sc_info->rg_subcache_entries[0]);
+			&(hfi_sc_info->rg_subcache_entries_flex[0]);
 
 		pkt->resource_type = HFI_RESOURCE_SYSCACHE;
 		hfi_sc_info->num_entries = res_sc_info->num_entries;
@@ -249,9 +249,9 @@ int create_pkt_cmd_sys_ubwc_config(
 
 	pkt->packet_type = HFI_CMD_SYS_SET_PROPERTY;
 	pkt->num_properties = 1;
-	pkt->rg_property_data[0] = HFI_PROPERTY_SYS_UBWC_CONFIG;
+	pkt->rg_property_data_flex[0] = HFI_PROPERTY_SYS_UBWC_CONFIG;
 	hfi = (struct hfi_cmd_sys_set_ubwc_config_packet_type *)
-		&pkt->rg_property_data[1];
+		&pkt->rg_property_data_flex[1];
 
 	hfi->max_channels = ubwc_config->max_channels;
 	hfi->override_bit_info.max_channel_override =
@@ -305,8 +305,8 @@ int create_pkt_cmd_sys_power_control(
 		sizeof(struct hfi_enable) + sizeof(u32);
 	pkt->packet_type = HFI_CMD_SYS_SET_PROPERTY;
 	pkt->num_properties = 1;
-	pkt->rg_property_data[0] = HFI_PROPERTY_SYS_CODEC_POWER_PLANE_CTRL;
-	hfi = (struct hfi_enable *) &pkt->rg_property_data[1];
+	pkt->rg_property_data_flex[0] = HFI_PROPERTY_SYS_CODEC_POWER_PLANE_CTRL;
+	hfi = (struct hfi_enable *) &pkt->rg_property_data_flex[1];
 	hfi->enable = enable;
 	return 0;
 }
@@ -382,7 +382,7 @@ int create_pkt_cmd_session_set_buffers(
 		pkt->size = sizeof(struct hfi_cmd_session_set_buffers_packet) -
 				sizeof(u32) + (buffer_info->num_buffers *
 				sizeof(struct hfi_buffer_info));
-		buff = (struct hfi_buffer_info *) pkt->rg_buffer_info;
+		buff = (struct hfi_buffer_info *) pkt->rg_buffer_info_flex;
 		for (i = 0; i < pkt->num_buffers; i++) {
 			buff->buffer_addr =
 				(u32)buffer_info->align_device_addr;
@@ -394,7 +394,7 @@ int create_pkt_cmd_session_set_buffers(
 		pkt->size = sizeof(struct hfi_cmd_session_set_buffers_packet) +
 			((buffer_info->num_buffers - 1) * sizeof(u32));
 		for (i = 0; i < pkt->num_buffers; i++) {
-			pkt->rg_buffer_info[i] =
+			pkt->rg_buffer_info_flex[i] =
 				(u32)buffer_info->align_device_addr;
 		}
 	}
@@ -426,7 +426,7 @@ int create_pkt_cmd_session_release_buffers(
 		buffer_info->buffer_type == HAL_BUFFER_OUTPUT2) {
 		struct hfi_buffer_info *buff;
 
-		buff = (struct hfi_buffer_info *) pkt->rg_buffer_info;
+		buff = (struct hfi_buffer_info *) pkt->rg_buffer_info_flex;
 		for (i = 0; i < pkt->num_buffers; i++) {
 			buff->buffer_addr =
 				(u32)buffer_info->align_device_addr;
@@ -438,7 +438,7 @@ int create_pkt_cmd_session_release_buffers(
 				sizeof(struct hfi_buffer_info));
 	} else {
 		for (i = 0; i < pkt->num_buffers; i++) {
-			pkt->rg_buffer_info[i] =
+			pkt->rg_buffer_info_flex[i] =
 				(u32)buffer_info->align_device_addr;
 		}
 		pkt->extra_data_size = 0;
@@ -477,7 +477,7 @@ int create_pkt_cmd_session_etb_decoder(
 	pkt->input_tag = input_frame->input_tag;
 	pkt->packet_buffer = (u32)input_frame->device_addr;
 	pkt->extra_data_buffer = 0;
-	pkt->rgData[0] = 0;
+	pkt->rgData_flex[0] = 0;
 
 	trace_msm_v4l2_vidc_buffer_event_start("ETB",
 		input_frame->device_addr, input_frame->timestamp,
@@ -514,7 +514,7 @@ int create_pkt_cmd_session_etb_encoder(
 	pkt->input_tag = input_frame->input_tag;
 	pkt->packet_buffer = (u32)input_frame->device_addr;
 	pkt->extra_data_buffer = (u32)input_frame->extradata_addr;
-	pkt->rgData[0] = input_frame->extradata_size;
+	pkt->rgData_flex[0] = input_frame->extradata_size;
 
 	trace_msm_v4l2_vidc_buffer_event_start("ETB",
 		input_frame->device_addr, input_frame->timestamp,
@@ -551,7 +551,7 @@ int create_pkt_cmd_session_ftb(struct hfi_cmd_session_fill_buffer_packet *pkt,
 	pkt->alloc_len = output_frame->alloc_len;
 	pkt->filled_len = output_frame->filled_len;
 	pkt->offset = output_frame->offset;
-	pkt->rgData[0] = output_frame->extradata_size;
+	pkt->rgData_flex[0] = output_frame->extradata_size;
 
 	trace_msm_v4l2_vidc_buffer_event_start("FTB",
 		output_frame->device_addr, output_frame->timestamp,
@@ -574,7 +574,7 @@ int create_pkt_cmd_session_get_buf_req(
 	pkt->packet_type = HFI_CMD_SESSION_GET_PROPERTY;
 	pkt->sid = sid;
 	pkt->num_properties = 1;
-	pkt->rg_property_data[0] = HFI_PROPERTY_CONFIG_BUFFER_REQUIREMENTS;
+	pkt->rg_property_data_flex[0] = HFI_PROPERTY_CONFIG_BUFFER_REQUIREMENTS;
 
 	return rc;
 }
@@ -620,9 +620,9 @@ int create_pkt_cmd_session_set_property(
 	pkt->sid = sid;
 	pkt->num_properties = 1;
 	pkt->size += size;
-	pkt->rg_property_data[0] = ptype;
+	pkt->rg_property_data_flex[0] = ptype;
 	if (size && pdata)
-		memcpy(&pkt->rg_property_data[1], pdata, size);
+		memcpy(&pkt->rg_property_data_flex[1], pdata, size);
 
 	s_vpr_h(pkt->sid, "Setting HAL Property = 0x%x\n", ptype);
 	return 0;
@@ -671,7 +671,7 @@ int create_pkt_ssr_cmd(struct hfi_cmd_sys_test_ssr_packet *pkt,
 		pkt->size += sizeof(struct hfi_ssr_payload);
 		payload.sub_client_id = sub_client_id;
 		payload.test_addr = test_addr;
-		memcpy(&pkt->rg_data[0], &payload, sizeof(struct hfi_ssr_payload));
+		memcpy(&pkt->rg_data_flex[0], &payload, sizeof(struct hfi_ssr_payload));
 	}
 	return 0;
 }
@@ -686,7 +686,7 @@ int create_pkt_cmd_sys_image_version(
 	pkt->size = sizeof(struct hfi_cmd_sys_get_property_packet);
 	pkt->packet_type = HFI_CMD_SYS_GET_PROPERTY;
 	pkt->num_properties = 1;
-	pkt->rg_property_data[0] = HFI_PROPERTY_SYS_IMAGE_VERSION;
+	pkt->rg_property_data_flex[0] = HFI_PROPERTY_SYS_IMAGE_VERSION;
 	return 0;
 }
 
