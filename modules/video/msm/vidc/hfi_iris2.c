@@ -206,23 +206,10 @@ void __power_off_iris2(struct venus_hfi_device *device)
 		d_vpr_e("NOC not in qaccept status %d\n", reg_status);
 	}
 
-	/* HPG 6.1.2 Step 3, debug bridge to low power */
+	/* HPG 6.1.2 Step 3, debug bridge to low power: the core raises no ack for it */
 skip_aon_mvp_noc:
 	__write_register(device,
 		WRAPPER_DEBUG_BRIDGE_LPI_CONTROL_IRIS2, 0x7, sid);
-	reg_status = 0;
-	count = 0;
-	while ((reg_status != 0x7) && count < max_count) {
-		lpi_status = __read_register(device,
-				 WRAPPER_DEBUG_BRIDGE_LPI_STATUS_IRIS2, sid);
-		reg_status = lpi_status & 0x7;
-		d_vpr_h("DBLP Set : lpi_status %d reg_status %d (count %d)\n",
-			lpi_status, reg_status, count);
-		usleep_range(50, 100);
-		count++;
-	}
-	if (count == max_count)
-		d_vpr_e("DBLP Set: status %d\n", reg_status);
 
 	/* HPG 6.1.2 Step 4, debug bridge to lpi release */
 	__write_register(device,
