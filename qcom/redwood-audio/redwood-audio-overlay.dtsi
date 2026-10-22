@@ -55,6 +55,21 @@
 			   "wsa-codec2";
 };
 
+&audio_apr {
+	qcom,rproc-handle = <&adsp_pas>;
+};
+
+&adsp_loader {
+	qcom,rproc-handle = <&adsp_pas>;
+};
+
+&soc {
+	adsp_notify: qcom,msm-adsp-notify {
+		compatible = "qcom,adsp-notify";
+		qcom,rproc-handle = <&adsp_pas>;
+	};
+};
+
 &q6core {
 	cdc_pri_tdm_gpios: pri_tdm_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
