@@ -55,6 +55,12 @@
 			   "wsa-codec2";
 };
 
+&{/aliases} {
+	swr0 = "/soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/wsa-macro@3240000/wsa_swr_master";
+	swr1 = "/soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/rx-macro@3200000/rx_swr_master";
+	swr2 = "/soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/tx-macro@3220000/tx_swr_master";
+};
+
 &audio_apr {
 	qcom,rproc-handle = <&adsp_pas>;
 };
