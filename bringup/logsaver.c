@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
+#include <sys/xattr.h>
 #include <sys/syscall.h>
 #include <linux/reboot.h>
 #include <sys/stat.h>
@@ -27,6 +28,54 @@ static int shim_fd[4] = { -1, -1, -1, -1 };
 static const char *shim_src[4] = { "/ionshim64.so", "/ionshim32.so", "/fstab.test", "/media.sh" };
 static const char *shim_tmp[4] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so", "/dev/.fstab.test", "/dev/.media.sh" };
 static const char *shim_dst[4] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so", "/vendor/etc/fstab.default", "/vendor/bin/init.qti.media.sh" };
+static const char *shim_label[5] = {
+	"u:object_r:same_process_hal_file:s0", "u:object_r:same_process_hal_file:s0",
+	"u:object_r:vendor_configs_file:s0", "u:object_r:vendor_qti_media_exec:s0",
+	"u:object_r:vendor_configs_file:s0",
+};
+static int se_dir = -1;
+
+/*
+ * The copies live on init's /dev tmpfs, which gets labelled by transition
+ * when the policy loads, whatever xattr they had. Give them the labels of
+ * the files they cover in the short gap between the policy load and init
+ * turning enforcing on. selinuxfs shows the new policy before it is
+ * committed, so keep at it until the label reads back.
+ */
+static void label_shims(int wfd)
+{
+	static const char *tmp[5] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so", "/dev/.fstab.test",
+				      "/dev/.media.sh", "/dev/.ueventd.rc" };
+	char cur[128], enf[2];
+	int i, n, ok = 0, err = 0;
+
+	if (se_dir < 0)
+		return;
+	for (n = 0; n < 20000; n++) {
+		if (!faccessat(se_dir, "class/file", F_OK, 0))
+			break;
+		usleep(500);
+	}
+	int efd = openat(se_dir, "enforce", O_RDONLY | O_CLOEXEC);
+
+	for (n = 0; n < 4000 && ok < 5; n++) {
+		if (efd >= 0 && pread(efd, enf, 1, 0) == 1 && enf[0] == '1')
+			break;
+		for (i = 0, ok = 0; i < 5; i++) {
+			ssize_t len;
+
+			if (setxattr(tmp[i], "security.selinux", shim_label[i], strlen(shim_label[i]) + 1, 0))
+				err = errno;
+			len = getxattr(tmp[i], "security.selinux", cur, sizeof(cur) - 1);
+			cur[len > 0 ? len : 0] = 0;
+			if (!strcmp(cur, shim_label[i]))
+				ok++;
+		}
+		if (ok < 5)
+			usleep(250);
+	}
+	dprintf(wfd, "<6>logsaver: labelled %d of 5 shims after %d tries (last error %d)\n", ok, n, err);
+}
 
 static int place_shims(int wfd)
 {
@@ -92,6 +141,7 @@ static int place_shims(int wfd)
 				close(out);
 			}
 		}
+		label_shims(wfd);
 		_exit(0);
 unsafe:
 		/* never let /data get mounted writable during these tests */
@@ -118,6 +168,9 @@ static void saver(void)
 	mkdir("/ls", 0700);
 	mkdir("/ls/proc", 0700);
 	mount("proc", "/ls/proc", "proc", 0, NULL);
+	mkdir("/ls/se", 0700);
+	if (!mount("selinuxfs", "/ls/se", "selinuxfs", 0, NULL))
+		se_dir = open("/ls/se", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	mknod("/ls/kmsg", S_IFCHR | 0600, makedev(1, 11));
 	wfd = open("/ls/kmsg", O_WRONLY | O_CLOEXEC);
 	for (i = 0; i < 4; i++)

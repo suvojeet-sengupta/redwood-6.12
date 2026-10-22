@@ -179,7 +179,7 @@ static int bootlog_thread(void *unused)
 		}
 		if (dev && used > done)
 			flush();
-		msleep(dev ? 100 : 500);
+		msleep_interruptible(dev ? 100 : 500);
 	}
 	pr_info("bootlog: stopped after %u ms\n", jiffies_to_msecs(jiffies - start));
 	while (kmsg_dump_get_line(&iter, false, line, sizeof(line), &len))
@@ -187,7 +187,7 @@ static int bootlog_thread(void *unused)
 	if (dev && used > done)
 		flush();
 	while (!kthread_should_stop())
-		msleep(1000);
+		msleep_interruptible(1000);
 	return 0;
 }
 

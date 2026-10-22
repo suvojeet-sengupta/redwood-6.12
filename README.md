@@ -133,11 +133,13 @@ gets through most of second stage. Things that matter:
   (`qcom_ice_program_wrapped_key: SCM call Error: 0xffffffea`). With
   [patches/soc-repo](patches/soc-repo) the kernel drives the HWKM itself
   like 5.4 does, and /data decrypts.
-- While testing, keep /data read-only: logsaver bind mounts
-  [bringup/fstab.test](bringup/fstab.test), the vendor fstab with
-  `ro,norecovery` on /data and without `check` and `formattable`, and
-  reboots to the bootloader if it can't. If init lands in recovery, never
-  format data from there: /data is shared with the working slot.
+- While testing, 6.12 never touches the real /data: load
+  [modules/testguard](modules/testguard) first, which holds userdata and
+  keeps misc read-only, and let logsaver bind mount
+  [bringup/fstab.test](bringup/fstab.test), the vendor fstab with /data on
+  a RAM tmpfs, so every boot is a first boot and nothing is kept. If init
+  ever lands in recovery, never format data from there: /data is shared
+  with the working slot.
 
 - The vendor composer needs the DMA pipes. The 6.12 display driver only
   sets them up when every `dgm` sub-block in `qcom,sde-sspp-dma-blocks` has

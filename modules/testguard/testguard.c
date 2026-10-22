@@ -111,10 +111,10 @@ static int guard_thread(void *unused)
 			to_bootloader("userdata or misc not found in time");
 			return 0;
 		}
-		msleep(50);
+		msleep_interruptible(50);
 	}
 	while (!kthread_should_stop())
-		msleep(1000);
+		msleep_interruptible(1000);
 	return 0;
 }
 
