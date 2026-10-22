@@ -1122,8 +1122,9 @@ static long bt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			vreg_info = &bt_power_pdata->vreg_info[itr];
 			set_pwr_srcs_status(vreg_info);
 		}
-		if (copy_to_user((void __user *)arg,
-			bt_power_src_status, sizeof(bt_power_src_status))) {
+		/* the HAL's table ends at BT_VDD_SMPS_CURRENT, the automotive entries are not part of its reply */
+		if (copy_to_user((void __user *)arg, bt_power_src_status,
+			(BT_VDD_SMPS_CURRENT + 1) * sizeof(*bt_power_src_status))) {
 			pr_err("%s: copy to user failed\n", __func__);
 			ret = -EFAULT;
 		}
