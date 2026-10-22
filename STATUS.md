@@ -18,7 +18,8 @@ Last updated 2026-10-22.
 | Android 17 | reached the setup wizard (with the workarounds in the README) |
 | ADSP, CDSP | boot |
 | WPSS | boots, icnss2 QMI connects, firmware reports ready |
-| Sound card | lahaina-yupikidp-snd-card registers, MultiMedia1 plays to RX_CDC_DMA_RX_0 |
+| Sound card | lahaina-yupikidp-snd-card registers |
+| Speaker | both AW88261 amps play (tone from the bring-up shell is loud and clear) |
 
 ## Wi-Fi (WCN6750)
 
@@ -61,9 +62,9 @@ Last updated 2026-10-22.
       on PRI_TDM_RX_0 next to the stub codec
       ([patches/audio-kernel](patches/audio-kernel) 0002), PRI TDM at 2
       slots like 5.4. Both report "start success" on a tone through
-      MultiMedia1 (PRI_TDM_RX_0: Two, S32_LE, KHZ_48).
-- [ ] Hear the speaker tone, and the earpiece (5.4 switches the 0x35 amp
-      with spk-sw-gpio 101).
+      MultiMedia1 (PRI_TDM_RX_0: Two, S32_LE, KHZ_48), and the tone is
+      heard on the speakers.
+- [ ] Earpiece (5.4 switches the 0x35 amp with spk-sw-gpio 101).
 - [ ] Earpiece and the mics (TX port params untested).
 - [ ] `msm-audio-ion` still uses `qcom,iommu-dma-addr-pool` (works,
       deprecated).
