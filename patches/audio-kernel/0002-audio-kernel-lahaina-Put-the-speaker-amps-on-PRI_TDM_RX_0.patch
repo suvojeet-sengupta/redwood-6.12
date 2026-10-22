@@ -1,0 +1,44 @@
+From d478aff99e8374a6f7d706a2543bb1256884dd7d Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Thu, 22 Oct 2026 08:57:28 +0000
+Subject: [PATCH] audio-kernel: lahaina: Put the speaker amps on PRI_TDM_RX_0
+
+The mainline AW88261 driver powers its amp up from the AIF_RX DAPM
+widget, so the amps have to be codecs on the back end that feeds them.
+Give lahaina its own PRI_TDM_RX_0 link with the two aw88261 codecs next
+to the stub codec. Boards whose device tree doesn't list them keep the
+stub codec only, since the card drops codecs it can't find.
+---
+ asoc/lahaina.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/asoc/lahaina.c b/asoc/lahaina.c
+index 410830a2d..8a085aee4 100644
+--- a/asoc/lahaina.c
++++ b/asoc/lahaina.c
+@@ -46,6 +46,13 @@
+ #include "lahaina-port-config.h"
+ #include "msm_dailink.h"
+ #include "msm_common.h"
++
++SND_SOC_DAILINK_DEFS(pri_tdm_rx_0_spkr,
++	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-tdm.36864")),
++	DAILINK_COMP_ARRAY(COMP_CODEC("msm-stub-codec.1", "msm-stub-rx"),
++			   COMP_CODEC("aw88261-l", "aw88261-aif"),
++			   COMP_CODEC("aw88261-r", "aw88261-aif")),
++	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+ #include <trace/hooks/sound.h>
+ 
+ #define DRV_NAME "lahaina-asoc-snd"
+@@ -6589,7 +6596,7 @@ static struct snd_soc_dai_link msm_common_be_dai_links[] = {
+ 		.ops = &lahaina_tdm_be_ops,
+ 		.ignore_suspend = 1,
+ 		.ignore_pmdown_time = 1,
+-		SND_SOC_DAILINK_REG(pri_tdm_rx_0),
++		SND_SOC_DAILINK_REG(pri_tdm_rx_0_spkr),
+ 	},
+ 	{
+ 		.name = LPASS_BE_PRI_TDM_TX_0,
+-- 
+2.43.0
+

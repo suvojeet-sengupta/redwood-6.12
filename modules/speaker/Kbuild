@@ -1,0 +1,6 @@
+# Copy aw88261.c, aw88261.h and the aw88395/ directory from
+# kernel_platform/common/sound/soc/codecs, and lib/crc8.c (GKI doesn't
+# export it) here; GKI does not build them.
+obj-m += snd-soc-aw88395-lib.o snd-soc-aw88261.o
+snd-soc-aw88395-lib-y := aw88395/aw88395_lib.o crc8.o
+snd-soc-aw88261-y := aw88261.o

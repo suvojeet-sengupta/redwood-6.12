@@ -56,8 +56,14 @@ Last updated 2026-10-22.
       the DSP (AFE port 0xb030 starts). No ACDB calibration in the shell.
 - [ ] Hear it on wired headphones (`HPH_L/R Switch` from the 5.4 mixer
       paths don't exist on 6.12; find their names).
-- [ ] Speaker: two Awinic AW882xx smart amps on i2c@98c000 (0x34, 0x35)
-      fed from PRI_TDM_RX_0. Needs an amp driver.
+- [x] Speaker amps: two AW88261 (chip id 0x2113) on i2c@98c000 (0x34,
+      0x35) with the mainline aw88261 driver ([modules/speaker](modules/speaker)),
+      on PRI_TDM_RX_0 next to the stub codec
+      ([patches/audio-kernel](patches/audio-kernel) 0002), PRI TDM at 2
+      slots like 5.4. Both report "start success" on a tone through
+      MultiMedia1 (PRI_TDM_RX_0: Two, S32_LE, KHZ_48).
+- [ ] Hear the speaker tone, and the earpiece (5.4 switches the 0x35 amp
+      with spk-sw-gpio 101).
 - [ ] Earpiece and the mics (TX port params untested).
 - [ ] `msm-audio-ion` still uses `qcom,iommu-dma-addr-pool` (works,
       deprecated).
