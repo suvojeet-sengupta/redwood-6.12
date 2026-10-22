@@ -1,10 +1,10 @@
 # redwood 6.12 status
 
 Where the Qualcomm 6.12 kernel platform port stands on redwood. Tests run on
-slot a in the bring-up USB shell ([bringup](bringup/README.md)); slot b keeps
-the daily system.
+slot b in the bring-up USB shell ([bringup](bringup/README.md)); slot a keeps
+the daily 5.4 system.
 
-Last updated 2026-10-12.
+Last updated 2026-10-22.
 
 ## Works
 
@@ -18,6 +18,7 @@ Last updated 2026-10-12.
 | Android 17 | reached the setup wizard (with the workarounds in the README) |
 | ADSP, CDSP | boot |
 | WPSS | boots, icnss2 QMI connects, firmware reports ready |
+| Sound card | lahaina-yupikidp-snd-card registers, MultiMedia1 plays to RX_CDC_DMA_RX_0 |
 
 ## Wi-Fi (WCN6750)
 
@@ -36,6 +37,31 @@ Last updated 2026-10-12.
 - [ ] Add the `soc-wake` and `ep-powersave` smp2p states (icnss2 asks for
       them; 5.4 never had them).
 
+## Audio
+
+- [x] APR, the ADSP loader and the audio notifier find the ADSP through
+      `qcom,rproc-handle` (5.4 used the subsystem name).
+- [x] The in-kernel pd-mapper serves yupik (sc7280 domains) and binds to
+      Qualcomm's `rproc_qcom_common.pd-mapper` aux device, so PDR sees the
+      ADSP's `avs/audio` domain come up
+      ([patches/soc-repo](patches/soc-repo) 0003, 0004).
+- [x] APR adds q6core and the audio ION devices on the first ADSP up
+      ([patches/audio-kernel](patches/audio-kernel)).
+- [x] SoundWire masters get their bus numbers from the swr0..2 aliases; rx
+      and tx both register with both WCD938x slaves.
+- [x] WCD938x probes with `qcom,swr-tx-port-params` (lahaina defaults).
+- [x] The card registers: AFE PCM RX1 (`msm-dai-q6-dev.226`) added, AUXPCM
+      links dropped.
+- [x] A tone on MultiMedia1 through the headphone path runs end to end on
+      the DSP (AFE port 0xb030 starts). No ACDB calibration in the shell.
+- [ ] Hear it on wired headphones (`HPH_L/R Switch` from the 5.4 mixer
+      paths don't exist on 6.12; find their names).
+- [ ] Speaker: two Awinic AW882xx smart amps on i2c@98c000 (0x34, 0x35)
+      fed from PRI_TDM_RX_0. Needs an amp driver.
+- [ ] Earpiece and the mics (TX port params untested).
+- [ ] `msm-audio-ion` still uses `qcom,iommu-dma-addr-pool` (works,
+      deprecated).
+
 ## Modem
 
 - [ ] MSS starts but trips "DOG detects stalled initialization": the modem
@@ -49,7 +75,6 @@ Last updated 2026-10-12.
 
 - [ ] Boot image: `qcom_ice.ko` built with the HWKM patch needs `hwkm.ko` and a
       matching `modules.dep` in the ramdisk, or boot stalls before USB.
-- [ ] Audio: all modules load, no sound card yet.
 - [ ] Battery / UCSI: `BATTERY_CHG` prop 27 answers rc=514, UCSI never sees a
       cable partner.
 - [ ] Video driver (`sku_version` missing, `media.sh` workaround).
