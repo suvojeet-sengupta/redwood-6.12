@@ -33,12 +33,14 @@ Things to know about redwood:
 ## logsaver.c
 
 An `/init` wrapper for booting the real Android ramdisk: rename Android's
-`init` to `init.android` and put this in its place. It forks a child that
-writes the kernel log, which also carries init's messages, to `logdump`
-as it comes in, with a heartbeat every two seconds and blocked task and
-CPU backtraces at 30 and 90 seconds, then execs Android's init.
+`init` to `init.android` and put this in its place. It forks a child for
+the shims below, then execs Android's init. The log is kept by
+[modules/bootlog](../modules/bootlog): a child of `/init` stays in the
+`kernel` domain, which Android's policy doesn't let read `/dev/kmsg` or
+write block devices, so a userspace logger goes quiet as soon as init
+turns enforcing on.
 
-The child mounts sysfs and proc in its own mount namespace. First stage
+The child mounts proc in its own mount namespace. First stage
 init moves every mount it can see into the new root and kills the boot if
 one fails, so a plain mount there ends in "Attempted to kill init".
 

@@ -11,3 +11,8 @@ Built like the display driver, against the lahaina modules_prepare output
   library, which GKI does not build, plus lib/crc8.c because GKI doesn't
   export it. The amps load redwood's vendor `aw882xx_acf.bin` as
   `aw88261_acf.bin`; the mainline parser reads it as is.
+- `bootlog`: keeps the kernel log, which also carries init's messages, on
+  `logdump` while testing Android, with a heartbeat every two seconds and
+  blocked task and CPU backtraces at 30 and 90 seconds. It writes with bios
+  from a kernel thread, so SELinux doesn't stop it, and only writes to a
+  partition that starts with zeros. Load it first in `modules.load`.
