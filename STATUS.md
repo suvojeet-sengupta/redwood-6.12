@@ -71,11 +71,13 @@ Last updated 2026-10-22.
 
 ## Modem
 
-- [ ] MSS starts but trips "DOG detects stalled initialization": the modem
-      needs `qrtr-ns`, `pd-mapper`, `tftp_server` and `rmt_storage`. Plan: run
-      just those vendor daemons in the bring-up shell, after backing up
-      `modemst1`, `modemst2`, `fsg` and `fsc`, with the firmware from the
-      slot the daily system uses.
+- [x] MSS boots and stays up: in-kernel pd-mapper and qrtr-ns, linux-msm
+      rmtfs serving EFS read-only from RAM copies of modemst1, modemst2,
+      fsg and fsc, and tqftpserv ([bringup](bringup/README.md)). The modem
+      registers its QMI services (NAS, WDS, UIM, DMS, voice, SMS, IPA, ...).
+- [ ] The modem's mcfg configs load through tqftpserv (path fix in
+      [patches/tqftpserv](bringup/patches/tqftpserv), untested).
+- [ ] SIM and network registration over QMI.
 - [ ] DMS up, which also gives Wi-Fi its real MAC.
 
 ## Other gaps

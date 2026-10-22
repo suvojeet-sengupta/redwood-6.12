@@ -102,6 +102,40 @@ sndtest set "RX_CDC_DMA_RX_0 Audio Mixer MultiMedia1" 1
 sndtest play 0 0 3 48000 2 1000
 ```
 
+## Modem: rmtfs, tqftpserv, qrtr-lookup
+
+The modem needs a remote storage server for its EFS and a TFTP server for
+its config files; the pd-mapper and qrtr name service are in the kernel.
+The shell uses the linux-msm tools, built static with the NDK:
+
+- [qrtr](https://github.com/linux-msm/qrtr) for libqrtr and `qrtr-lookup`
+- [rmtfs](https://github.com/linux-msm/rmtfs), with
+  [udev-shim](udev-shim) standing in for libudev (it only reads two sysfs
+  attributes of the `rmtfs` UIO device)
+- [tqftpserv](https://github.com/linux-msm/tqftpserv) with `-DANDROID` and
+  [patches/tqftpserv](patches/tqftpserv)
+
+```
+CC="aarch64-linux-android34-clang -static -O2"
+Q="-Iqrtr/include -Iqrtr/lib qrtr/lib/qrtr.c qrtr/lib/qmi.c qrtr/lib/logging.c"
+$CC -include endian.h -Iudev-shim -Irmtfs $Q udev-shim/udev.c rmtfs/{qmi_rmtfs,rmtfs,rproc,sharedmem,storage,util}.c -o rmtfs
+$CC -DANDROID -Itqftpserv $Q tqftpserv/{tqftpserv,translate}.c -o tqftpserv
+$CC -Iqrtr/src $Q qrtr/src/lookup.c -o qrtr-lookup
+```
+
+modemst1, modemst2, fsg and fsc are shared with the daily system, so never
+let the modem on 6.12 write them. Back them up from the daily system, copy
+them into RAM in the shell as `modem_fs1`, `modem_fs2`, `modem_fsg` and
+`modem_fsc` and run rmtfs read-only from there:
+
+```
+mknod /dev/qcom_rmtfs_uio1 c <major:minor of the uio named rmtfs>
+mkdir -p /data/vendor/tmp/tqftpserv
+rmtfs -o /tmp/efs -r -v &
+tqftpserv &
+echo start > /sys/class/remoteproc/<4080000.remoteproc-mss>/state
+```
+
 ## kmsbars.c
 
 Shows colour bars on the panel with plain KMS ioctls. With `msm_drm.ko`

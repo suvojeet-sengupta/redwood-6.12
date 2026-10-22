@@ -1,0 +1,29 @@
+From 9f75c68b54e392bd4e4c1ae03e4d02d8318a7a04 Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Thu, 22 Oct 2026 09:12:50 +0000
+Subject: [PATCH] translate: Only strip a trailing newline from the firmware
+ path
+
+The firmware_class path parameter has no trailing newline when it was written without one, and chopping off the last character then points every readonly request at the wrong directory (/firmware/imag).
+---
+ translate.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/translate.c b/translate.c
+index 19fdd48..4d725de 100644
+--- a/translate.c
++++ b/translate.c
+@@ -49,7 +49,9 @@ static void read_fw_path_from_sysfs(char *outbuffer, size_t bufsize)
+ 	if (pathsize == 0)
+ 		return;
+ 	/* truncate newline */
+-	outbuffer[pathsize - 1] = '\0';
++	if (outbuffer[pathsize - 1] == '\n')
++		pathsize--;
++	outbuffer[pathsize < bufsize ? pathsize : bufsize - 1] = '\0';
+ }
+ 
+ /**
+-- 
+2.43.0
+
