@@ -123,9 +123,17 @@ static void saver(void)
 	for (i = 0; i < 4; i++)
 		shim_fd[i] = open(shim_src[i], O_RDONLY | O_CLOEXEC);
 
-	/* first stage init mounts /vendor within a few seconds */
-	for (i = 0; i < 6000 && !place_shims(wfd); i++)
-		usleep(10000);
+	dprintf(wfd, "<6>logsaver: waiting for /vendor\n");
+	/* there is only about 100 ms between first stage init mounting /vendor
+	 * and second stage init turning SELinux enforcing on, after which this
+	 * process, still in the kernel domain, can't reach init's mounts */
+	sched_setscheduler(0, SCHED_FIFO, &(struct sched_param){ .sched_priority = 99 });
+	for (i = 0; i < 60000; i++) {
+		if (place_shims(wfd))
+			return;
+		usleep(1000);
+	}
+	dprintf(wfd, "<3>logsaver: /vendor never showed up, no shims\n");
 }
 
 int main(int argc, char **argv)

@@ -40,6 +40,10 @@ the shims below, then execs Android's init. The log is kept by
 write block devices, so a userspace logger goes quiet as soon as init
 turns enforcing on.
 
+It only has about 100 ms between first stage init mounting /vendor and
+SELinux going enforcing, so it polls at realtime priority, and it can still
+miss; [modules/testguard](../modules/testguard) is what keeps /data safe.
+
 The child mounts proc in its own mount namespace. First stage
 init moves every mount it can see into the new root and kills the boot if
 one fails, so a plain mount there ends in "Attempted to kill init".

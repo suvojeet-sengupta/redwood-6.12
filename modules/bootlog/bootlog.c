@@ -12,7 +12,8 @@
 #include <linux/kmsg_dump.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/sysrq.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 
 #define LOG_PAGES	4096
 #define SCAN_MINORS	1024
@@ -129,6 +130,26 @@ static void flush(void)
 	done = used;
 }
 
+/* sysrq is off on a user build, so list the processes and the stacks of
+ * blocked tasks directly */
+static void show_tasks(void)
+{
+	struct task_struct *p, *t;
+
+	rcu_read_lock();
+	for_each_process(p)
+		if (p->mm)
+			pr_info("bootlog: ps %d %d %c %s\n", task_pid_nr(p), task_ppid_nr(p),
+				task_state_to_char(p), p->comm);
+	for_each_process_thread(p, t) {
+		unsigned int state = READ_ONCE(t->__state);
+
+		if ((state & TASK_UNINTERRUPTIBLE) && !(state & TASK_NOLOAD))
+			sched_show_task(t);
+	}
+	rcu_read_unlock();
+}
+
 static int bootlog_thread(void *unused)
 {
 	static char line[1024];
@@ -143,10 +164,8 @@ static int bootlog_thread(void *unused)
 		if (time_after_eq(jiffies, beat)) {
 			beat = jiffies + 2 * HZ;
 			pr_info("bootlog: tick %d\n", tick);
-			if (tick == 15 || tick == 45) {
-				handle_sysrq('w');
-				handle_sysrq('l');
-			}
+			if (tick == 15 || tick == 45 || tick == 75)
+				show_tasks();
 			tick++;
 		}
 		while (kmsg_dump_get_line(&iter, false, line, sizeof(line), &len))
