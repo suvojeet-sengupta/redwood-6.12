@@ -37,6 +37,7 @@
 			<0x1e00000 0x84000>,
 			<0x1e04000 0x23000>;
 		reg-names = "ipa-base", "gsi-base";
+		qcom,max_num_smmu_cb = <3>;
 		pas-ids = <0xf>;
 		firmware-names = "yupik_ipa_fws";
 		memory-regions = <&pil_ipa_gsi_mem>;
