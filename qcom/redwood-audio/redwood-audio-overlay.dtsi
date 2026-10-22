@@ -49,10 +49,10 @@
 	qcom,msm-mbhc-usbc-audio-supported = <0>;
 	asoc-codec = <&stub_codec>, <&bolero>,
 		      <&wcd938x_codec>, <&swr_haptics>,
-		      <&wsa883x_0222>;
+		      <&wsa883x_0222>, <&aw88261_l>, <&aw88261_r>;
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
 			   "wcd938x_codec", "swr-haptics",
-			   "wsa-codec2";
+			   "wsa-codec2", "aw88261-l", "aw88261-r";
 };
 
 &{/aliases} {
@@ -160,4 +160,24 @@
 
 &wsa_macro {
 	status = "disabled";
+};
+
+&qupv3_se3_i2c {
+	status = "okay";
+
+	aw88261_r: speaker-amp@35 {
+		compatible = "awinic,aw88261";
+		reg = <0x35>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "AW_R";
+		awinic,audio-channel = <0>;
+	};
+
+	aw88261_l: speaker-amp@34 {
+		compatible = "awinic,aw88261";
+		reg = <0x34>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "AW_L";
+		awinic,audio-channel = <1>;
+	};
 };
