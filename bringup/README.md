@@ -90,6 +90,18 @@ on the computer as an ACM serial port and an NCM network adapter.
 Sets up a USB NCM and ACM gadget and serves the kernel log on TCP port 2323.
 Superseded by usbtest.c.
 
+## sndtest.c
+
+Lists and sets mixer controls and plays a sine on a PCM device, for
+testing audio from the shell without tinyalsa.
+
+```
+aarch64-linux-android34-clang -static -O2 -o sndtest sndtest.c -lm
+sndtest ctl
+sndtest set "RX_CDC_DMA_RX_0 Audio Mixer MultiMedia1" 1
+sndtest play 0 0 3 48000 2 1000
+```
+
 ## kmsbars.c
 
 Shows colour bars on the panel with plain KMS ioctls. With `msm_drm.ko`

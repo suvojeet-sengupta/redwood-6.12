@@ -1,0 +1,51 @@
+From d51bcaa903d5f79dc2c9dc6bf025cb72787eed2d Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Thu, 22 Oct 2026 08:03:11 +0000
+Subject: [PATCH] audio-kernel: apr: Add the child devices on the first ADSP up
+
+apr_register() boots the ADSP itself when a client registers before
+the audio domain is up and clears is_initial_boot on the way. When
+the domain comes up later, apr_adsp_up() sees is_initial_boot false
+and never schedules the child population, so q6core, the audio ION
+devices and everything under them (bolero, the codecs, the machine
+driver) never appear.
+
+Track whether the children were added instead.
+---
+ ipc/apr.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/ipc/apr.c b/ipc/apr.c
+index 938414ab8..c2dcb0216 100644
+--- a/ipc/apr.c
++++ b/ipc/apr.c
+@@ -307,6 +307,8 @@ static void apr_adsp_down(unsigned long opcode)
+ 	dispatch_event(opcode, APR_DEST_QDSP6);
+ }
+ 
++static bool apr_children_added;
++
+ static void apr_add_child_devices(struct work_struct *work)
+ {
+ 	int ret;
+@@ -316,6 +318,8 @@ static void apr_add_child_devices(struct work_struct *work)
+ 	if (ret)
+ 		dev_err(apr_priv->dev, "%s: failed to add child nodes, ret=%d\n",
+ 			__func__, ret);
++	else
++		apr_children_added = true;
+ }
+ 
+ static void apr_adsp_up(void)
+@@ -326,7 +330,7 @@ static void apr_adsp_up(void)
+ 		apr_set_q6_state(APR_SUBSYS_LOADED);
+ 
+ 		spin_lock(&apr_priv->apr_lock);
+-		if (apr_priv->is_initial_boot)
++		if (!apr_children_added)
+ 			schedule_work(&apr_priv->add_chld_dev_work);
+ 		spin_unlock(&apr_priv->apr_lock);
+ 		snd_event_notify(apr_priv->dev, SND_EVENT_UP);
+-- 
+2.43.0
+
