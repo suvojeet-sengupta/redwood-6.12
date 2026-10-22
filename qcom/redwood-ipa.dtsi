@@ -33,17 +33,20 @@
 	/*
 	 * 6.12 dropped qcom,iommu-dma-addr-pool, and without an IOVA window
 	 * the AP and uC context banks get no IOMMU domain. Reserve everything
-	 * around the 512M window at 0x20000000 the 5.4 pool gave them; the
+	 * around the 512M window at 0x20000000 the 5.4 pool gave them, up to
+	 * the 36-bit IOVA space the 64-bit DMA mask would otherwise reach; the
 	 * driver reads the window itself from qcom,ipa-dma-addr-pool.
 	 */
 	ipa_ap_iova: ipa_ap_iommu_region_partition {
 		iommu-addresses = <&ipa_smmu_ap 0x0 0x0 0x0 0x20000000>,
-				  <&ipa_smmu_ap 0x0 0x40000000 0x0 0xc0000000>;
+				  <&ipa_smmu_ap 0x0 0x40000000 0x0 0xc0000000>,
+				  <&ipa_smmu_ap 0x1 0x0 0xf 0x0>;
 	};
 
 	ipa_uc_iova: ipa_uc_iommu_region_partition {
 		iommu-addresses = <&ipa_smmu_uc 0x0 0x0 0x0 0x20000000>,
-				  <&ipa_smmu_uc 0x0 0x40000000 0x0 0xc0000000>;
+				  <&ipa_smmu_uc 0x0 0x40000000 0x0 0xc0000000>,
+				  <&ipa_smmu_uc 0x1 0x0 0xf 0x0>;
 	};
 
 	ipa_hw: qcom,ipa@1e00000 {
