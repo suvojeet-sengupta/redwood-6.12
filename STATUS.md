@@ -88,7 +88,14 @@ Last updated 2026-10-22.
       `qmitool online`. Without IPA the modem crashed in enl2_dl when it
       went online, and with remoteproc recovery disabled that took the
       phone down: set `recovery` to `enabled` before starting MSS.
-- [ ] Mobile data: a WDS call and rmnet_data on top of rmnet_ipa0.
+- [x] Mobile data call: [bringup/datacall.c](bringup/datacall.c) (DPM
+      open port, WDA, WDS bind/start) gets an address on `rmnet_data0`, and
+      ping over LTE works once WAN RX uses plain skbs.
+- [ ] TCP over mobile data: downlink TCP packets come back from IPA with a
+      deaggregation exception (destination pipe 0) and get dropped, so
+      connections open but no data arrives. ICMP is fine. Probably the
+      DL QMAP/checksum format the modem and IPA agree on.
+- [ ] DNS in the shell (static bionic resolves through netd).
 - [ ] DMS MAC for Wi-Fi (DMS is up now; icnss2 still has to ask it).
 
 ## Other gaps

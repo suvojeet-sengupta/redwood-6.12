@@ -150,6 +150,25 @@ qmitool mode
 qmitool raw 3 0x4f
 ```
 
+## datacall.c
+
+Brings up an IPv4 mobile data call the way netmgrd does: sets the QMAP
+ingress/egress format and mux channel 1 on `rmnet_ipa0`, creates
+`rmnet_data0` on it (needs `rmnet_ctl.ko` and `rmnet_core.ko` from
+datarmnet), registers the IPA endpoint with the modem's data port mapper
+(DPM), sets the WDA data format, binds WDS to mux 1, starts the call and
+puts the address, route and DNS on `rmnet_data0`. It keeps running, since
+the call ends when its WDS client goes away.
+
+```
+$CC $Q datacall.c -o datacall
+datacall airtelgprs.com &
+ping 8.8.8.8
+```
+
+The IPA modules (gsim, ipam, ipanetm, rmnet_mem) and `yupik_ipa_fws` have
+to be loaded first, and the modem online (`qmitool online`).
+
 ## kmsbars.c
 
 Shows colour bars on the panel with plain KMS ioctls. With `msm_drm.ko`
