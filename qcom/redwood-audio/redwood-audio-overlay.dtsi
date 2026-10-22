@@ -3,7 +3,7 @@
 &yupik_snd {
 	qcom,wcn-bt = <1>;
 	qcom,mi2s-audio-intf = <1>;
-	qcom,auxpcm-audio-intf = <1>;
+	qcom,auxpcm-audio-intf = <0>;
 	qcom,ext-disp-audio-rx = <0>;
 	qcom,afe-rxtx-lb = <0>;
 
