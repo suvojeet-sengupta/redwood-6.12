@@ -1,0 +1,33 @@
+From 76e49f86f77788c5967758aae2809c170172d185 Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Thu, 22 Oct 2026 06:53:33 +0000
+Subject: [PATCH] soc: qcom: pd_mapper: Serve the protection domains on yupik
+
+redwood's root compatible is "xiaomi,redwood", "qcom,yupik-idp",
+"qcom,yupik", "qcom,idp", none of which the in-kernel pd-mapper knows,
+so it never registers the service locator. Without it PDR never sees
+the ADSP's avs/audio domain come up and APR waits forever for
+AUDIO_NOTIFIER_SERVICE_UP, so no q6core and no sound card.
+
+yupik is the sm7325 flavour of sc7280, which upstream already maps to
+the sc7280 domains, so use those.
+---
+ drivers/soc/qcom/qcom_pd_mapper.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/soc/qcom/qcom_pd_mapper.c b/drivers/soc/qcom/qcom_pd_mapper.c
+index 2228595a3..27dcb8678 100644
+--- a/drivers/soc/qcom/qcom_pd_mapper.c
++++ b/drivers/soc/qcom/qcom_pd_mapper.c
+@@ -545,6 +545,8 @@ static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
+ 	{ .compatible = "qcom,sm8450", .data = sm8350_domains, },
+ 	{ .compatible = "qcom,sm8550", .data = sm8550_domains, },
+ 	{ .compatible = "qcom,sm8650", .data = sm8550_domains, },
++	{ .compatible = "qcom,sm7325", .data = sc7280_domains, },
++	{ .compatible = "qcom,yupik", .data = sc7280_domains, },
+ 	{},
+ };
+ 
+-- 
+2.43.0
+
