@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
  * Video for the lahaina msm_vidc (modules/video), from the 5.4 yupik device
- * tree; 6.12 has no video node for Yupik. The firmware loads into video_mem
- * through PAS instead of a PIL node.
+ * tree; 6.12 has no video node for Yupik. The firmware loads where the 5.4
+ * PIL put it (pil_venus_mem, 0x8b200000) through PAS instead of a PIL node.
  *
  * 6.12 dropped qcom,iommu-dma-addr-pool, and a context bank without an IOVA
  * window gets no IOMMU domain, so reserve everything around the window the
@@ -30,7 +30,7 @@
 		status = "okay";
 		reg = <0x0aa00000 0x0100000>;
 		interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
-		memory-region = <&video_mem>;
+		memory-region = <&pil_venus_mem>;
 
 		/* IOMMU Config */
 		#address-cells = <1>;

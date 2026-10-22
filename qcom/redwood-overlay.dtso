@@ -73,7 +73,8 @@
 };
 
 &reserved_memory {
-	cvp@8b200000 {
+	/* where the 5.4 PIL loads venus, which TZ expects */
+	pil_venus_mem: cvp@8b200000 {
 		no-map;
 		reg = <0x0 0x8b200000 0x0 0x500000>;
 	};

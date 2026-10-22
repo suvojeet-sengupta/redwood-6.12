@@ -18,3 +18,7 @@ msm-vidc-y := $(VIDC)/msm_v4l2_vidc.o $(VIDC)/msm_vidc_platform.o \
 
 # HFI packets end in one-element arrays they fill past on purpose
 CFLAGS_msm/vidc/hfi_packetization.o += -D__NO_FORTIFY
+
+# 5.4 code: HFI and RPC structs end in one-element arrays used as flexible
+# ones, which GKI's UBSAN bounds traps turn into panics
+UBSAN_SANITIZE := n

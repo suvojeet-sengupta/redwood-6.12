@@ -108,5 +108,15 @@ Last updated 2026-10-22.
       ([patches/soc-repo](patches/soc-repo) 0005, `qcom,xiaomi-battery-props`),
       charging works, thermal levels from 10A down.
 - [ ] UCSI never sees a cable partner (USB role still forced).
-- [ ] Video driver (`sku_version` missing, `media.sh` workaround).
+- [x] Video driver: the lahaina msm_vidc ported as `modules/video`. venus
+  boots from `/vendor/firmware/vpu20_1v` into the 5.4 carveout at
+  0x8b200000, `sku_version` reads 1, `/dev/video32` decodes MPEG-2, H.264,
+  HEVC and VP9 to NV12/UBWC, `/dev/video33` encodes H.264 and HEVC, and an
+  H.264 1080p session gets its buffers (`bringup/vidctest.c`). Power
+  collapse works. GKI's UBSAN bounds traps are off for the module: the HFI
+  structs end in one-element arrays used as flexible ones.
+- [ ] Decode a real stream (through Codec2 once Android boots).
+- [x] FastRPC: redwood's 5.4 adsprpc ported as `modules/adsprpc`; the ADSP
+  channel opens and the audio and sensor PDs come up.
+- [ ] FastRPC: 32-bit ioctls, ADSP recovery instead of a panic.
 - [ ] Display still uses `qcom,iommu-dma-addr-pool` (works, but deprecated).

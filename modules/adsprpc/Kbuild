@@ -4,3 +4,7 @@
 obj-m += frpc-adsprpc.o
 frpc-adsprpc-y := adsprpc.o
 ccflags-y += -I$(src) -I$(src)/trace -Wno-format
+
+# 5.4 code: HFI and RPC structs end in one-element arrays used as flexible
+# ones, which GKI's UBSAN bounds traps turn into panics
+UBSAN_SANITIZE := n
