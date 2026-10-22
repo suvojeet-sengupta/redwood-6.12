@@ -136,6 +136,20 @@ tqftpserv &
 echo start > /sys/class/remoteproc/<4080000.remoteproc-mss>/state
 ```
 
+## qmitool.c
+
+A small QMI client over QRTR for checking the modem from the shell: SIM
+card status, NAS registration and signal, the DMS operating mode, or any
+raw request.
+
+```
+$CC $Q qmitool.c -o qmitool
+qmitool sim
+qmitool nas
+qmitool mode
+qmitool raw 3 0x4f
+```
+
 ## kmsbars.c
 
 Shows colour bars on the panel with plain KMS ioctls. With `msm_drm.ko`
