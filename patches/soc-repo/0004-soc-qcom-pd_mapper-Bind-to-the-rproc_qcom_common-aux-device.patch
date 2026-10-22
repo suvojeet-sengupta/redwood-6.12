@@ -1,0 +1,30 @@
+From 411211aff01b10c81cac2482d80f20bb8f4646fd Mon Sep 17 00:00:00 2001
+From: suvojeet-sengupta <suvojitsengupta21@gmail.com>
+Date: Thu, 22 Oct 2026 07:06:03 +0000
+Subject: [PATCH] soc: qcom: pd_mapper: Bind to the rproc_qcom_common aux
+ device
+
+Qualcomm builds qcom_common.c into rproc_qcom_common.ko, so the
+remoteprocs add their pd-mapper auxiliary device as
+"rproc_qcom_common.pd-mapper.N" and the id table, which only has the
+upstream "qcom_common.pd-mapper", never matches. The locator never
+starts and PDR never reports the ADSP's audio domain up.
+---
+ drivers/soc/qcom/qcom_pd_mapper.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/soc/qcom/qcom_pd_mapper.c b/drivers/soc/qcom/qcom_pd_mapper.c
+index 27dcb8678..64e2e3f0d 100644
+--- a/drivers/soc/qcom/qcom_pd_mapper.c
++++ b/drivers/soc/qcom/qcom_pd_mapper.c
+@@ -665,6 +665,7 @@ static void qcom_pdm_remove(struct auxiliary_device *auxdev)
+ 
+ static const struct auxiliary_device_id qcom_pdm_table[] = {
+ 	{ .name = "qcom_common.pd-mapper" },
++	{ .name = "rproc_qcom_common.pd-mapper" },
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(auxiliary, qcom_pdm_table);
+-- 
+2.43.0
+
