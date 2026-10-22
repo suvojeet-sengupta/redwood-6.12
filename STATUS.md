@@ -75,8 +75,9 @@ Last updated 2026-10-22.
       rmtfs serving EFS read-only from RAM copies of modemst1, modemst2,
       fsg and fsc, and tqftpserv ([bringup](bringup/README.md)). The modem
       registers its QMI services (NAS, WDS, UIM, DMS, voice, SMS, IPA, ...).
-- [ ] The modem's mcfg configs load through tqftpserv (path fix in
-      [patches/tqftpserv](bringup/patches/tqftpserv), untested).
+- [x] The modem's mcfg configs load through tqftpserv (path fix in
+      [patches/tqftpserv](bringup/patches/tqftpserv)); its readwrite files
+      (mcfg.tmp, server_check.txt) go to tmpfs.
 - [ ] SIM and network registration over QMI.
 - [ ] DMS up, which also gives Wi-Fi its real MAC.
 
