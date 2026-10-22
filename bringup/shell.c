@@ -405,10 +405,24 @@ static void setup_gadget(void)
 	put(G "/UDC", udc);
 }
 
+static const char *slot_suffix(void)
+{
+	static char suffix[4] = "_a";
+	char buf[4096], *p;
+	FILE *f = fopen("/proc/cmdline", "r");
+
+	if (!f)
+		return suffix;
+	if (fgets(buf, sizeof(buf), f) && (p = strstr(buf, "androidboot.slot_suffix=")))
+		snprintf(suffix, sizeof(suffix), "%.2s", p + strlen("androidboot.slot_suffix="));
+	fclose(f);
+	return suffix;
+}
+
 int main(void)
 {
 	struct utsname u;
-	char dev[128];
+	char dev[128], modem[16];
 	int i;
 
 	mkdir("/proc", 0755);
@@ -429,15 +443,16 @@ int main(void)
 		sleep(1);
 	snapshot("first stage modules loaded");
 
-	/* The firmware lives on the modem partition, FAT, as on 5.4 */
-	if (find_part("modem_a", dev, sizeof(dev))) {
+	/* The firmware lives on the booted slot's modem partition, FAT, as on 5.4 */
+	snprintf(modem, sizeof(modem), "modem%s", slot_suffix());
+	if (find_part(modem, dev, sizeof(dev))) {
 		mkdir("/firmware", 0755);
 		if (mount(dev, "/firmware", "vfat", MS_RDONLY, "shortname=lower"))
 			klog("mount %s: %s\n", dev, strerror(errno));
 		else
 			put("/sys/module/firmware_class/parameters/path", "/firmware/image");
 	} else {
-		klog("no modem_a\n");
+		klog("no %s\n", modem);
 	}
 
 	load_list("vendor_dlkm.modules.load");
