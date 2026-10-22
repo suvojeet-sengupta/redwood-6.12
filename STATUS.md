@@ -18,6 +18,7 @@ Last updated 2026-10-22.
 | Android 17 | reached the setup wizard (with the workarounds in the README) |
 | ADSP, CDSP | boot |
 | WPSS | boots, icnss2 QMI connects, firmware reports ready |
+| Modem | boots, both SIMs ready, registers on LTE |
 | Sound card | lahaina-yupikidp-snd-card registers |
 | Speaker | both AW88261 amps play (tone from the bring-up shell is loud and clear) |
 
@@ -78,8 +79,17 @@ Last updated 2026-10-22.
 - [x] The modem's mcfg configs load through tqftpserv (path fix in
       [patches/tqftpserv](bringup/patches/tqftpserv)); its readwrite files
       (mcfg.tmp, server_check.txt) go to tmpfs.
-- [ ] SIM and network registration over QMI.
-- [ ] DMS up, which also gives Wi-Fi its real MAC.
+- [x] Both SIMs detected (USIM ready, slot 2 also ISIM) with
+      [bringup/qmitool.c](bringup/qmitool.c).
+- [x] IPA: dataipa (gsim, ipam, ipanetm, rmnet_mem) built for lahaina,
+      `yupik_ipa_fws` loads once the DT gives IPA its context bank count and
+      IOVA windows. The modem's IPA handshake completes.
+- [x] Online and registered on LTE (405-52 Airtel) with
+      `qmitool online`. Without IPA the modem crashed in enl2_dl when it
+      went online, and with remoteproc recovery disabled that took the
+      phone down: set `recovery` to `enabled` before starting MSS.
+- [ ] Mobile data: a WDS call and rmnet_data on top of rmnet_ipa0.
+- [ ] DMS MAC for Wi-Fi (DMS is up now; icnss2 still has to ask it).
 
 ## Other gaps
 
