@@ -19,6 +19,7 @@ Last updated 2026-10-22.
 | ADSP, CDSP | boot |
 | WPSS | boots, icnss2 QMI connects, firmware reports ready |
 | Modem | boots, both SIMs ready, registers on LTE |
+| Battery | charging and fuel gauge readings |
 | Sound card | lahaina-yupikidp-snd-card registers |
 | Speaker | both AW88261 amps play (tone from the bring-up shell is loud and clear) |
 
@@ -102,7 +103,10 @@ Last updated 2026-10-22.
 
 - [ ] Boot image: `qcom_ice.ko` built with the HWKM patch needs `hwkm.ko` and a
       matching `modules.dep` in the ramdisk, or boot stalls before USB.
-- [ ] Battery / UCSI: `BATTERY_CHG` prop 27 answers rc=514, UCSI never sees a
-      cable partner.
+- [x] Battery: status, capacity, voltage, current, temperature, cycle count,
+      capacities and model read right with Xiaomi's property layout
+      ([patches/soc-repo](patches/soc-repo) 0005, `qcom,xiaomi-battery-props`),
+      charging works, thermal levels from 10A down.
+- [ ] UCSI never sees a cable partner (USB role still forced).
 - [ ] Video driver (`sku_version` missing, `media.sh` workaround).
 - [ ] Display still uses `qcom,iommu-dma-addr-pool` (works, but deprecated).
