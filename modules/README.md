@@ -24,3 +24,10 @@ Built like the display driver, against the lahaina modules_prepare output
   bootloader, and reboots to the bootloader if it can't guard both
   partitions within six seconds. A userspace fstab swap can't do this:
   /vendor is only up for about 100 ms before SELinux goes enforcing.
+- `logcap`: copies Android log messages into the kernel log, so bootlog keeps
+  them: everything from the crash buffer, W and above from everyone, and all
+  of zygote, AndroidRuntime, libc, DEBUG and crash_dump. It reads what
+  processes send to `/dev/socket/logdw` through a kprobe on
+  `unix_dgram_sendmsg`; on a user build no domain that can read logd may
+  write `/dev/kmsg`, and liblog only puts security events in pmsg. Load it
+  right after bootlog.

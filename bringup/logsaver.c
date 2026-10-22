@@ -26,7 +26,7 @@ static int shim_fd[4] = { -1, -1, -1, -1 };
 /* fstab.test mounts /data read-only, so a broken key setup can't write to it */
 /* media.sh picks the yupik v1 media profiles, which the missing video driver would report */
 static const char *shim_src[4] = { "/ionshim64.so", "/ionshim32.so", "/fstab.test", "/media.sh" };
-static const char *shim_tmp[4] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so", "/dev/.fstab.test", "/dev/.media.sh" };
+static const char *shim_tmp[4] = { "/dev/.shims/ionshim64.so", "/dev/.shims/ionshim32.so", "/dev/.shims/fstab.test", "/dev/.shims/media.sh" };
 static const char *shim_dst[4] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so", "/vendor/etc/fstab.default", "/vendor/bin/init.qti.media.sh" };
 static const char *shim_label[5] = {
 	"u:object_r:same_process_hal_file:s0", "u:object_r:same_process_hal_file:s0",
@@ -44,8 +44,8 @@ static int se_dir = -1;
  */
 static void label_shims(int wfd)
 {
-	static const char *tmp[5] = { "/dev/.ionshim64.so", "/dev/.ionshim32.so", "/dev/.fstab.test",
-				      "/dev/.media.sh", "/dev/.ueventd.rc" };
+	static const char *tmp[5] = { "/dev/.shims/ionshim64.so", "/dev/.shims/ionshim32.so", "/dev/.shims/fstab.test",
+				      "/dev/.shims/media.sh", "/dev/.shims/ueventd.rc" };
 	char cur[128], enf[2];
 	int i, n, ok = 0, err = 0;
 
@@ -94,6 +94,11 @@ static int place_shims(int wfd)
 			dprintf(wfd, "<3>logsaver: can't enter init's mounts: %d\n", errno);
 			_exit(1);
 		}
+		/* not on /dev itself: it is nosuid, which rules out the domain
+		 * transition init.qti.media.sh needs */
+		mkdir("/dev/.shims", 0755);
+		if (mount("tmpfs", "/dev/.shims", "tmpfs", MS_NODEV, "mode=0755"))
+			dprintf(wfd, "<3>logsaver: no tmpfs for the shims: %d\n", errno);
 		for (i = 0; i < 4; i++) {
 			char b[65536];
 			ssize_t n;
@@ -129,12 +134,12 @@ static int place_shims(int wfd)
 
 			if (in >= 0)
 				close(in);
-			out = n > 0 ? open("/dev/.ueventd.rc", O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644) : -1;
+			out = n > 0 ? open("/dev/.shims/ueventd.rc", O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644) : -1;
 			if (out >= 0) {
 				memcpy(rc + n, rule, sizeof(rule) - 1);
 				n += sizeof(rule) - 1;
 				if (write(out, rc, n) == n &&
-				    !mount("/dev/.ueventd.rc", "/vendor/etc/ueventd.rc", NULL, MS_BIND, NULL))
+				    !mount("/dev/.shims/ueventd.rc", "/vendor/etc/ueventd.rc", NULL, MS_BIND, NULL))
 					dprintf(wfd, "<6>logsaver: ueventd.rc with the qcom heaps\n");
 				else
 					dprintf(wfd, "<3>logsaver: ueventd.rc bind failed: %d\n", errno);
