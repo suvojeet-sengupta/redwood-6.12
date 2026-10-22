@@ -1,6 +1,7 @@
 #include "yupik-audio-overlay.dtsi"
 
 &yupik_snd {
+	qcom,tdm-max-slots = <2>;
 	qcom,wcn-bt = <1>;
 	qcom,mi2s-audio-intf = <1>;
 	qcom,auxpcm-audio-intf = <0>;
