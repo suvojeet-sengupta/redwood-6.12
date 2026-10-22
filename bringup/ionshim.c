@@ -95,6 +95,8 @@ static const char *pick_heap(unsigned int mask, unsigned int flags)
 			return "qcom,secure-cdsp";
 		return "qcom,secure-non-pixel";
 	}
+	if (mask & BIT(4))
+		return "qcom,adsp";
 	if (mask & BIT(3))
 		return "qcom,display";
 	if (mask & BIT(5))

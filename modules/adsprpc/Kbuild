@@ -1,0 +1,6 @@
+# The legacy FastRPC driver from redwood's 5.4 kernel, which the HyperOS
+# vendor's libadsprpc needs (/dev/adsprpc-smd and its ioctls); the
+# dsp-kernel drivers for 6.12 only speak the upstream fastrpc ABI.
+obj-m += frpc-adsprpc.o
+frpc-adsprpc-y := adsprpc.o
+ccflags-y += -I$(src) -I$(src)/trace -Wno-format

@@ -5,11 +5,13 @@
  * read logd may also write /dev/kmsg, and liblog leaves pmsg alone, so this
  * looks at what processes send to /dev/socket/logdw instead. It only reads.
  */
+#include <linux/hash.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/percpu.h>
 #include <linux/socket.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/uio.h>
@@ -18,7 +20,10 @@
 
 #define HDR_LEN		11	/* android_log_header_t: id, tid, sec, nsec */
 #define MSG_MAX		1024
-#define LINE_BUDGET	40000
+#define LINE_BUDGET	150000
+/* so a daemon retrying in a loop can't use up the budget on its own */
+#define PROC_BUDGET	2000
+#define PROC_SLOTS	512
 
 enum { LOG_MAIN, LOG_RADIO, LOG_EVENTS, LOG_SYSTEM, LOG_CRASH };
 
@@ -29,6 +34,31 @@ struct capbuf {
 
 static DEFINE_PER_CPU(struct capbuf, bufs);
 static atomic_t budget = ATOMIC_INIT(LINE_BUDGET);
+static DEFINE_SPINLOCK(procs_lock);
+static struct {
+	pid_t tgid;
+	unsigned int lines;
+} procs[PROC_SLOTS];
+
+static bool proc_may_log(pid_t tgid)
+{
+	unsigned int i, slot = hash_32(tgid, ilog2(PROC_SLOTS));
+	unsigned long flags;
+	bool ok = false;
+
+	spin_lock_irqsave(&procs_lock, flags);
+	for (i = 0; i < PROC_SLOTS; i++, slot = (slot + 1) % PROC_SLOTS) {
+		if (procs[slot].tgid == tgid || !procs[slot].tgid) {
+			procs[slot].tgid = tgid;
+			ok = procs[slot].lines++ < PROC_BUDGET;
+			if (procs[slot].lines == PROC_BUDGET + 1)
+				printk(KERN_INFO "logcat: %d hit its line budget\n", tgid);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&procs_lock, flags);
+	return ok;
+}
 
 static const char *const tags[] = {
 	"zygote", "Zygote", "AndroidRuntime", "libc", "DEBUG", "crash_dump",
@@ -106,6 +136,8 @@ static int pre_sendmsg(struct kprobe *p, struct pt_regs *regs)
 	tag = b->raw + HDR_LEN + 1;
 	tlen = strnlen(tag, n - HDR_LEN - 1);
 	if (HDR_LEN + 1 + tlen + 1 >= n || !wanted(id, prio, tag))
+		return 0;
+	if (id != LOG_CRASH && !proc_may_log(current->tgid))
 		return 0;
 	text = tag + tlen + 1;
 	for (i = 0, o = 0; text[i] && o < MSG_MAX - 4; i++) {

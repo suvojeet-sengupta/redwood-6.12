@@ -1,0 +1,20 @@
+# The lahaina msm_vidc from video-kernel.lahaina.lnx.1.0 (5.4), the V4L2
+# ABI the HyperOS vendor's Codec2 components use; the 6.12 video drivers
+# speak a different one.
+VIDC := msm/vidc
+ccflags-y += -I$(src)/$(VIDC) -I$(src)/include -I$(src)/include/uapi \
+	-I$(srctree)/drivers/devfreq -include $(src)/config/konavidconf.h \
+	-Wno-format -Wno-array-bounds
+
+obj-m += msm-vidc.o
+msm-vidc-y := $(VIDC)/msm_v4l2_vidc.o $(VIDC)/msm_vidc_platform.o \
+	$(VIDC)/msm_vidc_common.o $(VIDC)/msm_vidc.o $(VIDC)/msm_vdec.o \
+	$(VIDC)/msm_venc.o $(VIDC)/msm_smem.o $(VIDC)/msm_vidc_debug.o \
+	$(VIDC)/msm_vidc_res_parse.o $(VIDC)/hfi_common.o $(VIDC)/hfi_ar50_lt.o \
+	$(VIDC)/hfi_iris2.o $(VIDC)/hfi_response_handler.o \
+	$(VIDC)/hfi_packetization.o $(VIDC)/vidc_hfi.o $(VIDC)/msm_vidc_clocks.o \
+	$(VIDC)/msm_vidc_bus_ar50lite.o $(VIDC)/msm_vidc_bus_iris2.o \
+	$(VIDC)/msm_vidc_buffer_calculations.o $(VIDC)/vidc_612.o
+
+# HFI packets end in one-element arrays they fill past on purpose
+CFLAGS_msm/vidc/hfi_packetization.o += -D__NO_FORTIFY

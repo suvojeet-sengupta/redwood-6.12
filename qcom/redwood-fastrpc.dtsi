@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * FastRPC for the legacy adsprpc driver (modules/adsprpc), from the 5.4
+ * yupik device tree; 6.12 has no FastRPC nodes for Yupik.
+ *
+ * 6.12 dropped qcom,iommu-dma-addr-pool, and a context bank without an IOVA
+ * window gets no IOMMU domain, so reserve everything around the window the
+ * 5.4 pool gave each bank; the driver falls back to the same 0x78000000
+ * pool size without qcom,iommu-dma-addr-pool.
+ */
+
+&soc {
+	fastrpc_iova: fastrpc_iommu_region_partition {
+		iommu-addresses = <&fastrpc_cb1 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb1 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb2 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb2 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb3 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb3 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb4 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb4 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb5 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb5 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb6 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb6 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb7 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb7 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb8 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb8 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb10 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb10 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb11 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb11 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb12 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb12 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb13 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb13 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb14 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb14 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb15 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb15 0x0 0xf8000000 0x0 0x8000000>,
+				  <&fastrpc_cb16 0x0 0x0 0x0 0x80000000>,
+				  <&fastrpc_cb16 0x0 0xf8000000 0x0 0x8000000>;
+	};
+
+	fastrpc_secure_iova: fastrpc_secure_iommu_region_partition {
+		iommu-addresses = <&fastrpc_cb9 0x0 0x0 0x0 0x60000000>,
+				  <&fastrpc_cb9 0x0 0xd8000000 0x0 0x28000000>;
+	};
+
+	msm_fastrpc: qcom,msm_fastrpc {
+		compatible = "qcom,msm-fastrpc-compute";
+		/* for the 64-bit iommu-addresses of the banks below; soc is 1/1 */
+		#address-cells = <2>;
+		#size-cells = <2>;
+		qcom,adsp-remoteheap-vmid = <22 37>;
+		qcom,fastrpc-adsp-audio-pdr;
+		qcom,fastrpc-adsp-sensors-pdr;
+		qcom,rpc-latency-us = <235>;
+		qcom,fastrpc-gids = <2908>;
+		qcom,qos-cores = <0 1 2 3>;
+
+		fastrpc_cb1: qcom,msm_fastrpc_compute_cb1 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11A1 0x0420>,
+					<&apps_smmu 0x1181 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb2: qcom,msm_fastrpc_compute_cb2 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11A2 0x0420>,
+					<&apps_smmu 0x1182 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb3: qcom,msm_fastrpc_compute_cb3 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11A3 0x0420>,
+					<&apps_smmu 0x1183 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb4: qcom,msm_fastrpc_compute_cb4 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11A4 0x0420>,
+					<&apps_smmu 0x1184 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb5: qcom,msm_fastrpc_compute_cb5 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11A5 0x0420>,
+					<&apps_smmu 0x1185 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb6: qcom,msm_fastrpc_compute_cb6 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11A6 0x0420>,
+					<&apps_smmu 0x1186 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb7: qcom,msm_fastrpc_compute_cb7 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11A7 0x0420>,
+					<&apps_smmu 0x1187 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb8: qcom,msm_fastrpc_compute_cb8 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11A8 0x0420>,
+					<&apps_smmu 0x1188 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb9: qcom,msm_fastrpc_compute_cb9 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			qcom,secure-context-bank;
+			iommus = <&apps_smmu 0x11A9 0x0420>,
+					<&apps_smmu 0x1189 0x0420>;
+			memory-region = <&fastrpc_secure_iova>;
+			qcom,iommu-vmid = <0xA>;      /* VMID_CP_PIXEL */
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb10: qcom,msm_fastrpc_compute_cb10 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "adsprpc-smd";
+			iommus = <&apps_smmu 0x1803 0x0>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb11: qcom,msm_fastrpc_compute_cb11 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "adsprpc-smd";
+			iommus = <&apps_smmu 0x1804 0x0>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb12: qcom,msm_fastrpc_compute_cb12 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "adsprpc-smd";
+			iommus = <&apps_smmu 0x1805 0x0>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+			shared-cb = <5>;
+		};
+
+		fastrpc_cb13: qcom,msm_fastrpc_compute_cb13 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11AB 0x0420>,
+					<&apps_smmu 0x118B 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb14: qcom,msm_fastrpc_compute_cb14 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11AC 0x0420>,
+					<&apps_smmu 0x118C 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb15: qcom,msm_fastrpc_compute_cb15 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11AD 0x0420>,
+					<&apps_smmu 0x118D 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+
+		fastrpc_cb16: qcom,msm_fastrpc_compute_cb16 {
+			compatible = "qcom,msm-fastrpc-compute-cb";
+			label = "cdsprpc-smd";
+			iommus = <&apps_smmu 0x11AE 0x0420>,
+					<&apps_smmu 0x118E 0x0420>;
+			memory-region = <&fastrpc_iova>;
+			dma-coherent-hint-cached;
+		};
+	};
+};

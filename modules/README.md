@@ -25,9 +25,21 @@ Built like the display driver, against the lahaina modules_prepare output
   partitions within six seconds. A userspace fstab swap can't do this:
   /vendor is only up for about 100 ms before SELinux goes enforcing.
 - `logcap`: copies Android log messages into the kernel log, so bootlog keeps
-  them: everything from the crash buffer, W and above from everyone, and all
+  them: everything from the crash buffer, W and above from everyone (2000 lines a process), and all
   of zygote, AndroidRuntime, libc, DEBUG and crash_dump. It reads what
   processes send to `/dev/socket/logdw` through a kprobe on
   `unix_dgram_sendmsg`; on a user build no domain that can read logd may
   write `/dev/kmsg`, and liblog only puts security events in pmsg. Load it
   right after bootlog.
+- `adsprpc`: the legacy FastRPC driver from redwood's 5.4 kernel, which the
+  HyperOS vendor's libadsprpc needs (`/dev/adsprpc-smd` and its ioctls; the
+  6.12 dsp-kernel drivers only speak the upstream fastrpc ABI). SSR comes
+  from the qcom remoteproc notifiers, PDR from the in-kernel PDR helpers,
+  memory assignment from SCM; no ramdumps and no 32-bit ioctls yet. Its DT
+  is [qcom/redwood-fastrpc.dtsi](../qcom/redwood-fastrpc.dtsi).
+- `video`: the lahaina msm_vidc from video-kernel.lahaina.lnx.1.0 (5.4), the
+  V4L2 ABI the vendor's Codec2 components use. ION allocations come from
+  the qcom DMA-BUF heaps and venus boots through the MDT loader and PAS
+  instead of PIL; the msm bitrate mode CQ keeps its 5.4 value (6.12 gives
+  the name to another one). Its DT is
+  [qcom/redwood-video.dtsi](../qcom/redwood-video.dtsi).
