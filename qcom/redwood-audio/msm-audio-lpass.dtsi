@@ -332,6 +332,11 @@
 			qcom,msm-dai-q6-dev-id = <225>;
 		};
 
+		afe_pcm_rx_1: qcom,msm-dai-q6-be-afe-pcm-rx-1 {
+			compatible = "qcom,msm-dai-q6-dev";
+			qcom,msm-dai-q6-dev-id = <226>;
+		};
+
 		afe_proxy_rx: qcom,msm-dai-q6-afe-proxy-rx {
 			compatible = "qcom,msm-dai-q6-dev";
 			qcom,msm-dai-q6-dev-id = <241>;
