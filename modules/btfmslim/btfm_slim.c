@@ -652,7 +652,7 @@ static int btfm_slim_probe(struct slim_device *slim)
 	pr_info("%s: name = %s\n", __func__, dev_name(&slim->dev));
 
 	BTFMSLIM_DBG("");
-	BTFMSLIM_ERR("is_laddr_valid is true");
+	BTFMSLIM_DBG("is_laddr_valid is true");
 	if (!slim->ctrl)
 		return -EINVAL;
 
