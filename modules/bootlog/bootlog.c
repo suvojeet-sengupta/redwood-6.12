@@ -46,6 +46,8 @@ static bool is_cleared(struct block_device *bdev)
 	__bio_add_page(bio, p, PAGE_SIZE, 0);
 	err = submit_bio_wait(bio);
 	bio_put(bio);
+	if (err)
+		pr_info("bootlog: reading %pg failed: %d\n", bdev, err);
 	if (!err) {
 		head = page_address(p);
 		for (i = 0; i < 64 && !head[i]; i++)
@@ -60,6 +62,7 @@ static struct file *find_logdump(void)
 {
 	static const unsigned int majors[] = { 8, 259 };
 	struct file *f;
+	bool unread = false;
 	int i, m;
 
 	for (i = 0; i < ARRAY_SIZE(majors); i++) {
@@ -73,9 +76,12 @@ static struct file *find_logdump(void)
 				bool cleared = is_cleared(file_bdev(f));
 
 				fput(f);
+				/* redwood has two; the bring-up shell keeps its own log on one */
 				if (!cleared) {
-					pr_info("bootlog: logdump holds an unread log, not writing\n");
-					return ERR_PTR(-EEXIST);
+					pr_info("bootlog: logdump (%u:%u) holds an unread log, not writing it\n",
+						MAJOR(devt), MINOR(devt));
+					unread = true;
+					continue;
 				}
 				f = bdev_file_open_by_dev(devt, BLK_OPEN_READ | BLK_OPEN_WRITE, NULL, NULL);
 				if (!IS_ERR(f))
@@ -85,7 +91,7 @@ static struct file *find_logdump(void)
 			fput(f);
 		}
 	}
-	return NULL;
+	return unread ? ERR_PTR(-EEXIST) : NULL;
 }
 
 static void append(const char *s, size_t n)
