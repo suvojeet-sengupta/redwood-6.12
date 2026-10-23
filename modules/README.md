@@ -43,3 +43,8 @@ Built like the display driver, against the lahaina modules_prepare output
   instead of PIL; the msm bitrate mode CQ keeps its 5.4 value (6.12 gives
   the name to another one). Its DT is
   [qcom/redwood-video.dtsi](../qcom/redwood-video.dtsi).
+- `btpower`: the BT power driver from redwood's 5.4 kernel, which the
+  vendor BT HAL drives through `/dev/btpower` (BT_EN, SW_CTRL and the
+  WCN6750 rails); HCI goes over `/dev/ttyHS0`, which 6.12 already has.
+  `bringup/bttest.c` powers the chip and sends an HCI Reset. Its DT is
+  [qcom/redwood-bt.dtsi](../qcom/redwood-bt.dtsi).
