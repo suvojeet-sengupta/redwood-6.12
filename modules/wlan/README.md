@@ -7,9 +7,12 @@ by side under `vendor-tree/wlan`.
 - Platform (`icnss2`, `cnss_utils`, `wlan_firmware_service`, `cnss_nl`,
   `cnss_prealloc`): apply [../../patches/wlan-platform](../../patches/wlan-platform)
   and run `build-platform.sh`.
-- qcacld (`wlan.ko`, profile `lahaina_gki_qca6750`): `build-qcacld.sh`. Kleaf
-  passes feature flags the plain Kbuild build does not get, so the script
-  adds `configs/config_to_feature.h` and `grep_defines_lahaina.h` (the
+- qcacld (`wlan.ko`, profile `lahaina_gki_qca6750`): apply
+  [../../patches/wlan-qcacld](../../patches/wlan-qcacld) and run
+  `build-qcacld.sh`. Kleaf passes feature flags the plain Kbuild build does
+  not get, so the patch writes the final CONFIG_ values to
+  `configs/kbuild_defines.h`, and the script includes it ahead of
+  `configs/config_to_feature.h` and `grep_defines_lahaina.h` (the
   cfg80211 features Kleaf greps out of the kernel headers, plus
   `CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT`, which 6.12 needs since
   `wdev->chandef` moved into `wdev->links[]`), `WLAN_OPEN_SOURCE` and
@@ -17,3 +20,7 @@ by side under `vendor-tree/wlan`.
   platform headers (`inc-net`).
 - Device tree: `qcom/redwood-wlan.dtsi`, the 5.4 `qcom,wcn6750` node plus
   `qcom,rproc-handle` for the WPSS.
+- The ini is `wlan/qca_cld/WCNSS_qcom_cfg.ini`, the path 5.4 uses and
+  redwood's vendor provides (`/vendor/firmware/wlan/qca_cld/`, a link to
+  `/vendor/etc/wifi/WCNSS_qcom_cfg.ini`); without it `hdd_context_create`
+  fails with -EPERM.
