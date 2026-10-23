@@ -48,3 +48,11 @@ Built like the display driver, against the lahaina modules_prepare output
   WCN6750 rails); HCI goes over `/dev/ttyHS0`, which 6.12 already has.
   `bringup/bttest.c` powers the chip and sends an HCI Reset. Its DT is
   [qcom/redwood-bt.dtsi](../qcom/redwood-bt.dtsi).
+- `camera` (in the kernel tree, `vendor/camera-kernel`): the 6.12
+  camera-kernel built for Titan 570 from its `camera_modules.bzl` source list
+  (`Kbuild.redwood`; the stock Kbuild names files this tree doesn't have).
+  The sensor and request manager UAPI is put back to the 5.4 layout redwood's
+  CamX uses: no `frequency` in `i2c_rdwr_header`, the 5.4 continuous read,
+  no `ir_led_slot_id` in the sensor query, 256 link handles. LRME isn't
+  built (the bzl has no sources for it). Its DT is
+  [qcom/redwood-camera.dtsi](../qcom/redwood-camera.dtsi).

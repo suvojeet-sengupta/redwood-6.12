@@ -23,6 +23,7 @@
 #include "redwood-fastrpc.dtsi"
 #include "redwood-video.dtsi"
 #include "redwood-bt.dtsi"
+#include "redwood-camera.dtsi"
 #include "redwood-audio/yupik-audio.dtsi"
 #include "redwood-audio/redwood-audio-overlay.dtsi"
 
