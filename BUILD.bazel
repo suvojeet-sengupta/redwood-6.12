@@ -11,6 +11,7 @@ kernel_dtstree(
             "qcom/**/*.dtsi",
             "qcom/**/*.dts",
             "qcom/**/*.dtso",
+            "qcom/**/*.h",
             "bindings/**/*",
         ],
         exclude = [
