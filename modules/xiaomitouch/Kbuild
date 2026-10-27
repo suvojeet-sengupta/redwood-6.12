@@ -1,0 +1,1 @@
+obj-m += xiaomi_touch.o

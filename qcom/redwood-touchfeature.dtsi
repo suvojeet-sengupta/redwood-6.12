@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Xiaomi's touch feature class (/sys/class/touch/touch_dev and
+ * /dev/xiaomi-touch), from the 5.4 tree; modules/xiaomitouch.
+ */
+
+&soc {
+	xiaomi_touch {
+		compatible = "xiaomi-touch";
+		touch,name = "xiaomi-touch";
+		status = "okay";
+	};
+};
