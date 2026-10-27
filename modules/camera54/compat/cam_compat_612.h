@@ -55,6 +55,11 @@ static inline void cam_gpio_free_array(const struct gpio *array, size_t num)
  * 5.4's icc_get(dev, src_id, dst_id) is gone. The ids come from the
  * "interconnects" pair of a known node, so get the path from that node.
  */
+static inline void cam_icc_dev_release(struct device *dev)
+{
+	kfree(dev);
+}
+
 static inline struct icc_path *cam_icc_get_np(struct device_node *np)
 {
 	struct device *dev;
@@ -66,6 +71,7 @@ static inline struct icc_path *cam_icc_get_np(struct device_node *np)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 	device_initialize(dev);
+	dev->release = cam_icc_dev_release;
 	dev->of_node = np;
 	dev_set_name(dev, "cam-icc-%pOFn", np);
 	path = of_icc_get(dev, NULL);	/* index 0; of_icc_get_by_index() isn't exported */

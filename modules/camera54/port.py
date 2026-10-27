@@ -155,5 +155,24 @@ open(f, "w").write(t)
 # camera_main uses the DMA_BUF namespace for the heaps
 f = os.path.join(root, "camera_main.c")
 open(f, "a").write("\nMODULE_IMPORT_NS(DMA_BUF);\n")
-print("interconnect, smmu edits done")
+
+# DT devices have no IRQ resources on 6.12: look the IRQ up by name and
+# wrap it in a resource, since the driver uses irq_line->start
+edit("cam_utils/cam_soc_util.c", [("""		soc_info->irq_line =
+			platform_get_resource_byname(soc_info->pdev,
+			IORESOURCE_IRQ, soc_info->irq_name);
+		if (!soc_info->irq_line) {""", """		int irq = platform_get_irq_byname(soc_info->pdev,
+			soc_info->irq_name);
+
+		soc_info->irq_line = irq < 0 ? NULL :
+			devm_kzalloc(&soc_info->pdev->dev,
+				sizeof(*soc_info->irq_line), GFP_KERNEL);
+		if (soc_info->irq_line) {
+			soc_info->irq_line->start = irq;
+			soc_info->irq_line->end = irq;
+			soc_info->irq_line->flags = IORESOURCE_IRQ;
+			soc_info->irq_line->name = soc_info->irq_name;
+		}
+		if (!soc_info->irq_line) {""")])
+print("interconnect, smmu, irq edits done")
 

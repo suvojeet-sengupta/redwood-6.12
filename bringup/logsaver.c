@@ -89,6 +89,25 @@ static void label_shims(int wfd)
 	dprintf(wfd, "<6>logsaver: labelled %d of %d shims after %d tries (last error %d)\n", ok, NLABELS, n, err);
 }
 
+/* label the shims while no policy is loaded yet; ext4 keeps the xattrs */
+static void prelabel_shims(int wfd)
+{
+	static const char *tmp[NLABELS] = { "/dev/.shims/ionshim64.so", "/dev/.shims/ionshim32.so", "/dev/.shims/fstab.test",
+					    "/dev/.shims/media.sh", "/dev/.shims/ueventd.rc", "/dev/.shims/build.prop",
+					    "/dev/.shims/init.usb.configfs.rc" };
+	int i, ok = 0;
+
+	for (i = 0; i < NLABELS; i++) {
+		if (access(tmp[i], F_OK))
+			continue;
+		if (!setxattr(tmp[i], "security.selinux", shim_label[i], strlen(shim_label[i]) + 1, 0))
+			ok++;
+		else
+			dprintf(wfd, "<3>logsaver: can't label %s: %d\n", tmp[i], errno);
+	}
+	dprintf(wfd, "<6>logsaver: prelabelled %d shims\n", ok);
+}
+
 static int place_shims(int wfd)
 {
 	pid_t pid;
@@ -106,11 +125,26 @@ static int place_shims(int wfd)
 			dprintf(wfd, "<3>logsaver: can't enter init's mounts: %d\n", errno);
 			_exit(1);
 		}
-		/* not on /dev itself: it is nosuid, which rules out the domain
-		 * transition init.qti.media.sh needs */
-		mkdir("/dev/.shims", 0755);
-		if (mount("tmpfs", "/dev/.shims", "tmpfs", MS_NODEV, "mode=0755"))
-			dprintf(wfd, "<3>logsaver: no tmpfs for the shims: %d\n", errno);
+		/*
+		 * Keep the shims on /metadata (ext4) and label them with xattrs
+		 * now, before the policy loads: ext4 keeps labels in xattrs, so
+		 * they hold once it does. On a tmpfs the label has to be set in
+		 * the ~70 ms between the policy load and enforcing, and when
+		 * that was missed the boot HAL and vold couldn't read the fstab
+		 * and the boot hung at the logo. /dev/.shims points there so
+		 * the paths below stay the same; a tmpfs is the fallback.
+		 */
+		mkdir("/metadata/redwood612", 0755);
+		if (!access("/metadata/redwood612", W_OK) &&
+		    !symlink("/metadata/redwood612", "/dev/.shims")) {
+			dprintf(wfd, "<6>logsaver: shims on /metadata\n");
+		} else {
+			/* not on /dev itself: it is nosuid, which rules out the
+			 * domain transition init.qti.media.sh needs */
+			mkdir("/dev/.shims", 0755);
+			if (mount("tmpfs", "/dev/.shims", "tmpfs", MS_NODEV, "mode=0755"))
+				dprintf(wfd, "<3>logsaver: no tmpfs for the shims: %d\n", errno);
+		}
 		for (i = 0; i < 4; i++) {
 			char b[65536];
 			ssize_t n;
@@ -199,6 +233,9 @@ static int place_shims(int wfd)
 				close(out);
 			}
 		}
+		prelabel_shims(wfd);
+		/* /metadata is nosuid; init.qti.media.sh needs its domain transition */
+		mount(NULL, "/vendor/bin/init.qti.media.sh", NULL, MS_REMOUNT | MS_BIND, NULL);
 		label_shims(wfd);
 		_exit(0);
 unsafe:
