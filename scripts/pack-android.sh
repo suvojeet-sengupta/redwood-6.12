@@ -24,7 +24,9 @@ tar -xzf $D/system_dlkm_staging_archive.tar.gz -C $OUT/sysdlkm
 find $OUT/sysdlkm -name "*.ko" | while read f; do [ -e $M/$(basename $f) ] || cp $f $M/; done
 cp $A/*.ko $M/
 rm -f $M/hdmi_dlkm.ko
-cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/camera/camera.ko $W/fingerprint/goodix_fp.ko $W/fingerprint/xiaomi_fp.ko $M/
+cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/camera/camera.ko $W/fingerprint/goodix_fp.ko $W/fingerprint/xiaomi_fp.ko $W/haptics/aw8697-haptic.ko $M/
+WL=$KP/../vendor/wlan
+cp $WL/qcacld-3.0/wlan.ko $(find $WL/platform -name "*.ko") $M/
 cp $(ls $KP/bazel-cache/bazel-cache/*/execroot/_main/bazel-out/k8-fastbuild/bin/vendor/qcom/opensource/datarmnet-ext/mem/lahaina_perf_rmnet_mem/staging/lib/modules/*/extra/vendor/qcom/opensource/datarmnet-ext/mem/rmnet_mem.ko) $M/
 for f in $W/vb/out/*.ko; do
 	case $(basename $f) in
@@ -34,11 +36,19 @@ for f in $W/vb/out/*.ko; do
 done
 for f in $M/*.ko; do $B/llvm-strip --strip-debug $f; done
 
-# GKI only lets modules that export protected symbols load from the signed
-# system_dlkm, and first stage init gives up on the first module that fails,
-# so leave those and everything that needs them out of the ramdisk.
+# GKI only lets modules that export protected symbols load when they carry
+# the build's signature, and stripping drops it, so put the signed copies of
+# the ones Wi-Fi and Bluetooth need back after stripping. First stage init
+# gives up on the first module that fails, so they load last.
+SIGNED="rfkill.ko libarc4.ko bluetooth.ko btbcm.ko btqca.ko hci_uart.ko pwrseq-core.ko"
+for m in $SIGNED; do
+	f=$(find $OUT/sysdlkm -name $m | head -1)
+	[ -n "$f" ] && cp $f $M/$m
+done
+
+# Leave out the rest of what needs a protected module that isn't signed here.
 depmod -b $OUT/mods $REL
-bad="tipc.ko rfkill.ko libarc4.ko"
+bad="tipc.ko"
 while :; do
 	more=$(awk -v bad=" $bad " -F: '{ n = split($2, d, " "); for (i = 1; i <= n; i++) if (index(bad, " " d[i] " ") && !index(bad, " " $1 " ")) { print $1; break } }' $M/modules.dep | sort -u | tr "\n" " ")
 	[ -n "$more" ] || break
@@ -61,10 +71,18 @@ for m in $bad; do rm -f $M/$m; done
 	for m in snd-soc-aw88395-lib snd-soc-aw88261 machine_dlkm \
 		rmnet_mem gsim ipam ipanetm rmnet_ctl rmnet_core \
 		qseecom_dlkm smcinvoke_dlkm qcrypto-msm_dlkm qce50_dlkm qcedev-mod_dlkm qrng_dlkm \
-		hdcp_qseecom_dlkm smmu_proxy_dlkm msm_drm msm_kgsl goodix_berlin_core goodix_berlin_spi usbrole frpc-adsprpc msm-vidc btpower camera goodix_fp xiaomi_fp; do
+		hdcp_qseecom_dlkm smmu_proxy_dlkm msm_drm msm_kgsl goodix_berlin_core goodix_berlin_spi usbrole frpc-adsprpc msm-vidc camera goodix_fp xiaomi_fp aw8697-haptic \
+		rfkill cfg80211 cnss_prealloc cnss_utils wlan_firmware_service cnss_nl icnss2 wlan \
+		bluetooth hci_uart btpower; do
 		echo $m.ko
 	done
-} | awk '!seen[$0]++' | while read m; do [ -e $M/$m ] && echo $m; done > $M/modules.load
+} | awk '!seen[$0]++' | while read m; do [ -e $M/$m ] && echo $m; done > $M/modules.load.all
+# Wi-Fi and Bluetooth hang off the signed rfkill: load them last, so a
+# failure there can't stop anything else. qcacld doesn't use mac80211.
+LATE="rfkill.ko cfg80211.ko cnss_prealloc.ko cnss_utils.ko wlan_firmware_service.ko cnss_nl.ko icnss2.ko wlan.ko bluetooth.ko hci_uart.ko btpower.ko"
+grep -vxF -e mac80211.ko $(for m in $LATE; do echo "-e $m"; done) $M/modules.load.all > $M/modules.load
+for m in $LATE; do [ -e $M/$m ] && echo $m; done >> $M/modules.load
+rm $M/modules.load.all
 rm -f $M/modules.dep* $M/modules.alias* $M/modules.softdep $M/modules.symbols* $M/modules.devname
 depmod -b $OUT/mods $REL
 while read m; do grep -q "^$m:" $M/modules.dep || echo "missing from modules.dep: $m"; done < $M/modules.load
