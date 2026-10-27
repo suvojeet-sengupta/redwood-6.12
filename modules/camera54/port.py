@@ -174,5 +174,29 @@ edit("cam_utils/cam_soc_util.c", [("""		soc_info->irq_line =
 			soc_info->irq_line->name = soc_info->irq_name;
 		}
 		if (!soc_info->irq_line) {""")])
-print("interconnect, smmu, irq edits done")
+
+# say why the secondary heap mapping fails (iommu_map_sg() returns ssize_t)
+edit("cam_smmu/cam_smmu_api.c", [("""	if (size != sec_heap_iova_len) {
+		CAM_ERR(CAM_SMMU, "IOMMU mapping failed");""", """	if (size != sec_heap_iova_len) {
+		CAM_ERR(CAM_SMMU, "IOMMU mapping failed: %zd of %zu at 0x%lx, %u entries, buf %zu",
+			(ssize_t)size, (size_t)sec_heap_iova_len, (unsigned long)sec_heap_iova,
+			secheap_buf->table->nents, secheap_buf->buf->size);""")])
+
+# iommu_map_sg() walks the CPU scatterlist: pass orig_nents, not the count
+# dma_map_sg() merged it to (the 1 MB secheap mapped only its first 64 KB)
+f = os.path.join(root, "cam_smmu/cam_smmu_api.c")
+t = open(f).read()
+out, i = [], 0
+for m in re.finditer(r"\biommu_map_sg\(", t):
+    if m.start() < i:
+        continue
+    j, depth = m.end(), 1
+    while depth:
+        depth += {"(": 1, ")": -1}.get(t[j], 0)
+        j += 1
+    out.append(t[i:m.start()] + t[m.start():j].replace("table->nents", "table->orig_nents"))
+    i = j
+out.append(t[i:])
+open(f, "w").write("".join(out))
+print("interconnect, smmu, irq, sg edits done")
 
