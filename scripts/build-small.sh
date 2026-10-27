@@ -9,6 +9,9 @@ MK="make -C $KP/common O=$HOME/k612/mp-lahaina ARCH=arm64 LLVM=1 LLVM_IAS=1 KBUI
 C=$KP/common/sound/soc/codecs
 rm -rf ~/work/speaker; cp -r $R/speaker ~/work/speaker
 cp $C/aw88261.c $C/aw88261.h ~/work/speaker/; cp -r $C/aw88395 ~/work/speaker/
+# Android only has the vendor's copy, /vendor/firmware/aw882xx_acf.bin; the
+# mainline name isn't found once the ramdisk is gone, and the card fails
+sed -i 's/"aw88261_acf.bin"/"aw882xx_acf.bin"/' ~/work/speaker/aw88261.h
 sed -e "/EXPORT_SYMBOL/d" -e "/MODULE_/d" $KP/common/lib/crc8.c > ~/work/speaker/crc8.c
 for m in speaker bootlog testguard logcap adsprpc; do
 	[ $m = speaker ] || { rm -rf ~/work/$m; cp -r $R/$m ~/work/; }

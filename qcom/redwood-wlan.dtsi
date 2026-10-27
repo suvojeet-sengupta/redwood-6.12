@@ -125,3 +125,12 @@
 		};
 	};
 };
+
+/*
+ * The vendor keeps the WPSS image at /vendor/firmware_mnt/image/wpss.*,
+ * without the qca6750/ directory yupik.dtsi asks for, so in Android the
+ * WPSS never booted and Wi-Fi never started.
+ */
+&wpss_pas {
+	firmware-name = "wpss.mdt";
+};
