@@ -31,12 +31,13 @@ static int shim_fd[4] = { -1, -1, -1, -1 };
 static const char *shim_src[4] = { "/ionshim64.so", "/ionshim32.so", "/fstab.test", "/media.sh" };
 static const char *shim_tmp[4] = { "/dev/.shims/ionshim64.so", "/dev/.shims/ionshim32.so", "/dev/.shims/fstab.test", "/dev/.shims/media.sh" };
 static const char *shim_dst[4] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so", "/vendor/etc/fstab.default", "/vendor/bin/init.qti.media.sh" };
-static const char *shim_label[6] = {
+#define NLABELS 7
+static const char *shim_label[NLABELS] = {
 	"u:object_r:same_process_hal_file:s0", "u:object_r:same_process_hal_file:s0",
 	"u:object_r:vendor_configs_file:s0", "u:object_r:vendor_qti_media_exec:s0",
 	"u:object_r:vendor_configs_file:s0", "u:object_r:system_file:s0",
+	"u:object_r:system_file:s0",
 };
-#define NLABELS 6
 static int se_dir = -1;
 
 /*
@@ -49,7 +50,8 @@ static int se_dir = -1;
 static void label_shims(int wfd)
 {
 	static const char *tmp[NLABELS] = { "/dev/.shims/ionshim64.so", "/dev/.shims/ionshim32.so", "/dev/.shims/fstab.test",
-					    "/dev/.shims/media.sh", "/dev/.shims/ueventd.rc", "/dev/.shims/build.prop" };
+					    "/dev/.shims/media.sh", "/dev/.shims/ueventd.rc", "/dev/.shims/build.prop",
+					    "/dev/.shims/init.usb.configfs.rc" };
 	char cur[128], enf[2];
 	int i, n, ok = 0, err = 0;
 
@@ -168,6 +170,33 @@ static int place_shims(int wfd)
 				close(out);
 			} else {
 				dprintf(wfd, "<3>logsaver: no /system/build.prop to copy: %d\n", errno);
+			}
+		}
+		/*
+		 * The gadget HAL only takes "mtp,adb" once adbd has its
+		 * functionfs up, and system_server starts adbd too late (or
+		 * dies first), so start it from init on boot.
+		 */
+		{
+			static const char extra[] = "\non boot\n    start adbd\n";
+			static char rc[65536];
+			int in = open("/system/etc/init/hw/init.usb.configfs.rc", O_RDONLY | O_CLOEXEC);
+			ssize_t n = in >= 0 ? read(in, rc, sizeof(rc) - sizeof(extra)) : -1;
+			int out;
+
+			if (in >= 0)
+				close(in);
+			out = n > 0 ? open("/dev/.shims/init.usb.configfs.rc", O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644) : -1;
+			if (out >= 0) {
+				memcpy(rc + n, extra, sizeof(extra) - 1);
+				n += sizeof(extra) - 1;
+				if (write(out, rc, n) == n &&
+				    !mount("/dev/.shims/init.usb.configfs.rc", "/system/etc/init/hw/init.usb.configfs.rc",
+					   NULL, MS_BIND, NULL))
+					dprintf(wfd, "<6>logsaver: init.usb.configfs.rc starts adbd on boot\n");
+				else
+					dprintf(wfd, "<3>logsaver: init.usb.configfs.rc bind failed: %d\n", errno);
+				close(out);
 			}
 		}
 		label_shims(wfd);
