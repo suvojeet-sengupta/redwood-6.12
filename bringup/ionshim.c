@@ -17,6 +17,16 @@ struct dma_heap_allocation_data {
 };
 #define DMA_HEAP_IOCTL_ALLOC _IOWR('H', 0x0, struct dma_heap_allocation_data)
 
+/* modules/ioncompat: /dev/ion on the DMA-BUF heaps */
+struct ion_allocation_data {
+	uint64_t len;
+	uint32_t heap_id_mask;
+	uint32_t flags;
+	uint32_t fd;
+	uint32_t unused;
+};
+#define ION_IOC_ALLOC _IOWR('I', 0, struct ion_allocation_data)
+
 struct ion_heap_data {
 	char name[32];
 	uint32_t type;
@@ -155,6 +165,29 @@ int ion_is_using_modular_heaps(int fd)
 	return 1;
 }
 
+/*
+ * Every domain may open /dev/ion, but only some may open the qcom heap
+ * nodes, so ask ioncompat first.
+ */
+static int ion_dev_alloc(size_t len, unsigned int heap_mask, unsigned int flags, int *out)
+{
+	struct ion_allocation_data d = {
+		.len = len,
+		.heap_id_mask = heap_mask,
+		.flags = flags,
+	};
+	int fd = open("/dev/ion", O_RDONLY | O_CLOEXEC);
+	int ret;
+
+	if (fd < 0)
+		return -errno;
+	ret = ioctl(fd, ION_IOC_ALLOC, &d) < 0 ? -errno : 0;
+	close(fd);
+	if (!ret)
+		*out = d.fd;
+	return ret;
+}
+
 int ion_alloc_fd(int fd, size_t len, size_t align, unsigned int heap_mask,
 		 unsigned int flags, int *handle_fd)
 {
@@ -165,6 +198,12 @@ int ion_alloc_fd(int fd, size_t len, size_t align, unsigned int heap_mask,
 	(void)align;
 	if (!handle_fd)
 		return -EINVAL;
+	ret = ion_dev_alloc(len, heap_mask, flags, handle_fd);
+	if (!ret)
+		return 0;
+	if (ret != -ENOENT)
+		klog("/dev/ion alloc len %zu mask 0x%x flags 0x%x failed: %d\n",
+		     len, heap_mask, flags, ret);
 	ret = heap_alloc(name, len, handle_fd);
 	if (ret) {
 		klog("alloc len %zu mask 0x%x flags 0x%x from %s failed: %d\n",

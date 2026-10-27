@@ -24,7 +24,7 @@ tar -xzf $D/system_dlkm_staging_archive.tar.gz -C $OUT/sysdlkm
 find $OUT/sysdlkm -name "*.ko" | while read f; do [ -e $M/$(basename $f) ] || cp $f $M/; done
 cp $A/*.ko $M/
 rm -f $M/hdmi_dlkm.ko
-cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/camera/camera.ko $W/fingerprint/goodix_fp.ko $W/fingerprint/xiaomi_fp.ko $W/haptics/aw8697-haptic.ko $M/
+cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/camera/camera.ko $W/fingerprint/goodix_fp.ko $W/fingerprint/xiaomi_fp.ko $W/haptics/aw8697-haptic.ko $W/ioncompat/ioncompat.ko $M/
 WL=$KP/../vendor/wlan
 cp $WL/qcacld-3.0/wlan.ko $(find $WL/platform -name "*.ko") $M/
 cp $(ls $KP/bazel-cache/bazel-cache/*/execroot/_main/bazel-out/k8-fastbuild/bin/vendor/qcom/opensource/datarmnet-ext/mem/lahaina_perf_rmnet_mem/staging/lib/modules/*/extra/vendor/qcom/opensource/datarmnet-ext/mem/rmnet_mem.ko) $M/
@@ -61,6 +61,7 @@ for m in $bad; do rm -f $M/$m; done
 	echo testguard.ko
 	echo bootlog.ko
 	echo logcap.ko
+	echo ioncompat.ko
 	xargs -n1 basename < $D/vendor_boot.modules.load
 	xargs -n1 basename < $D/vendor_dlkm.modules.load
 	for m in snd_event q6_notifier apr adsp_loader q6_pdr q6 platform native stub pinctrl_lpi pinctrl_wcd \
