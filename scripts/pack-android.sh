@@ -43,7 +43,7 @@ for f in $M/*.ko; do $B/llvm-strip --strip-debug $f; done
 # the build's signature, and stripping drops it, so put the signed copies of
 # the ones Wi-Fi and Bluetooth need back after stripping. First stage init
 # gives up on the first module that fails, so they load last.
-SIGNED="rfkill.ko libarc4.ko bluetooth.ko btbcm.ko btqca.ko hci_uart.ko pwrseq-core.ko"
+SIGNED="rfkill.ko libarc4.ko bluetooth.ko btbcm.ko btqca.ko hci_uart.ko pwrseq-core.ko tipc.ko tipc_diag.ko"
 for m in $SIGNED; do
 	f=$(find $OUT/sysdlkm -name $m | head -1)
 	[ -n "$f" ] && cp $f $M/$m
@@ -51,7 +51,7 @@ done
 
 # Leave out the rest of what needs a protected module that isn't signed here.
 depmod -b $OUT/mods $REL
-bad="tipc.ko"
+bad=""
 while :; do
 	more=$(awk -v bad=" $bad " -F: '{ n = split($2, d, " "); for (i = 1; i <= n; i++) if (index(bad, " " d[i] " ") && !index(bad, " " $1 " ")) { print $1; break } }' $M/modules.dep | sort -u | tr "\n" " ")
 	[ -n "$more" ] || break
@@ -83,7 +83,7 @@ for m in $bad; do rm -f $M/$m; done
 } | awk '!seen[$0]++' | while read m; do [ -e $M/$m ] && echo $m; done > $M/modules.load.all
 # Wi-Fi and Bluetooth hang off the signed rfkill: load them last, so a
 # failure there can't stop anything else. qcacld doesn't use mac80211.
-LATE="rfkill.ko cfg80211.ko cnss_prealloc.ko cnss_utils.ko wlan_firmware_service.ko cnss_nl.ko icnss2.ko wlan.ko bluetooth.ko hci_uart.ko btpower.ko"
+LATE="tipc.ko tipc_diag.ko rfkill.ko cfg80211.ko cnss_prealloc.ko cnss_utils.ko wlan_firmware_service.ko cnss_nl.ko icnss2.ko wlan.ko bluetooth.ko hci_uart.ko btpower.ko"
 grep -vxF -e mac80211.ko $(for m in $LATE; do echo "-e $m"; done) $M/modules.load.all > $M/modules.load
 for m in $LATE; do [ -e $M/$m ] && echo $m; done >> $M/modules.load
 rm $M/modules.load.all
