@@ -29,18 +29,28 @@ static bool is_logdump(struct block_device *bdev)
 	       !strcmp(bdev->bd_meta_info->volname, "logdump");
 }
 
-/* only write to a cleared partition, so an unread log from an earlier boot
- * survives the boot used to read it */
-static bool is_cleared(struct block_device *bdev)
+/*
+ * Every log starts with "REDWOOD612ANDROID seq=NNNNNNNN". Write to a cleared
+ * logdump if there is one, else over the one with the older log, so the two
+ * newest boots are always kept and nothing has to be cleared by hand.
+ * Returns the log's sequence number, -1 for a cleared partition, or -2 if
+ * it can't be read. A log from before the sequence numbers counts as 0.
+ */
+#define HEADER		"REDWOOD612ANDROID seq="
+#define HEADER_LEN	(sizeof(HEADER) - 1)
+#define SEQ_DIGITS	8
+
+static long log_seq(struct block_device *bdev)
 {
 	struct page *p = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	struct bio *bio;
-	bool ok = false;
+	long seq = -2;
+	char digits[SEQ_DIGITS + 1];
 	u8 *head;
 	int i, err;
 
 	if (!p)
-		return false;
+		return -2;
 	bio = bio_alloc(bdev, 1, REQ_OP_READ, GFP_KERNEL);
 	bio->bi_iter.bi_sector = 0;
 	__bio_add_page(bio, p, PAGE_SIZE, 0);
@@ -52,17 +62,29 @@ static bool is_cleared(struct block_device *bdev)
 		head = page_address(p);
 		for (i = 0; i < 64 && !head[i]; i++)
 			;
-		ok = i == 64;
+		if (i == 64) {
+			seq = -1;
+		} else if (!memcmp(head, HEADER, HEADER_LEN)) {
+			memcpy(digits, head + HEADER_LEN, SEQ_DIGITS);
+			digits[SEQ_DIGITS] = 0;
+			if (kstrtol(digits, 10, &seq) || seq < 0)
+				seq = 0;
+		} else {
+			seq = 0;
+		}
 	}
 	__free_page(p);
-	return ok;
+	return seq;
 }
+
+static long my_seq;
 
 static struct file *find_logdump(void)
 {
 	static const unsigned int majors[] = { 8, 259 };
+	dev_t best = 0;
+	long best_seq = LONG_MAX, max_seq = 0;
 	struct file *f;
-	bool unread = false;
 	int i, m;
 
 	for (i = 0; i < ARRAY_SIZE(majors); i++) {
@@ -70,28 +92,29 @@ static struct file *find_logdump(void)
 			f = bdev_file_open_by_dev(MKDEV(majors[i], m), BLK_OPEN_READ, NULL, NULL);
 			if (IS_ERR(f))
 				continue;
+			/* redwood has two */
 			if (is_logdump(file_bdev(f)) &&
 			    bdev_nr_bytes(file_bdev(f)) >= (loff_t)LOG_PAGES * PAGE_SIZE) {
-				dev_t devt = file_bdev(f)->bd_dev;
-				bool cleared = is_cleared(file_bdev(f));
+				long seq = log_seq(file_bdev(f));
 
-				fput(f);
-				/* redwood has two; the bring-up shell keeps its own log on one */
-				if (!cleared) {
-					pr_info("bootlog: logdump (%u:%u) holds an unread log, not writing it\n",
-						MAJOR(devt), MINOR(devt));
-					unread = true;
-					continue;
+				pr_info("bootlog: %pg holds log %ld\n", file_bdev(f), seq);
+				if (seq > max_seq)
+					max_seq = seq;
+				if (seq >= -1 && seq < best_seq) {
+					best_seq = seq;
+					best = file_bdev(f)->bd_dev;
 				}
-				f = bdev_file_open_by_dev(devt, BLK_OPEN_READ | BLK_OPEN_WRITE, NULL, NULL);
-				if (!IS_ERR(f))
-					pr_info("bootlog: writing to %pg\n", file_bdev(f));
-				return f;
 			}
 			fput(f);
 		}
 	}
-	return unread ? ERR_PTR(-EEXIST) : NULL;
+	if (!best)
+		return NULL;
+	my_seq = max_seq + 1;
+	f = bdev_file_open_by_dev(best, BLK_OPEN_READ | BLK_OPEN_WRITE, NULL, NULL);
+	if (!IS_ERR(f))
+		pr_info("bootlog: writing log %ld to %pg\n", my_seq, file_bdev(f));
+	return f;
 }
 
 static void append(const char *s, size_t n)
@@ -165,7 +188,8 @@ static int bootlog_thread(void *unused)
 	size_t len;
 
 	kmsg_dump_rewind(&iter);
-	append("REDWOOD612ANDROID\n", 18);
+	/* the sequence number goes in once the partition is picked */
+	append(HEADER "00000000\n", HEADER_LEN + SEQ_DIGITS + 1);
 	while (!kthread_should_stop() && tick < 600) {
 		if (time_after_eq(jiffies, beat)) {
 			beat = jiffies + 2 * HZ;
@@ -181,6 +205,12 @@ static int bootlog_thread(void *unused)
 
 			if (IS_ERR(f))
 				break;
+			if (f) {
+				char seq[SEQ_DIGITS + 1];
+
+				snprintf(seq, sizeof(seq), "%0*ld", SEQ_DIGITS, my_seq % 100000000);
+				memcpy(page_address(pages[0]) + HEADER_LEN, seq, SEQ_DIGITS);
+			}
 			dev = f;
 		}
 		if (dev && used > done)

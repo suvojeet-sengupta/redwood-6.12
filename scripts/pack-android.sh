@@ -33,7 +33,7 @@ cp $WL/qcacld-3.0/wlan.ko $(find $WL/platform -name "*.ko") $M/
 cp $(ls $KP/bazel-cache/bazel-cache/*/execroot/_main/bazel-out/k8-fastbuild/bin/vendor/qcom/opensource/datarmnet-ext/mem/lahaina_perf_rmnet_mem/staging/lib/modules/*/extra/vendor/qcom/opensource/datarmnet-ext/mem/rmnet_mem.ko) $M/
 for f in $W/vb/out/*.ko; do
 	case $(basename $f) in
-	tz_log_dlkm.ko|subsys_compat.ko) ;;
+	tz_log_dlkm.ko) ;;
 	*) cp $f $M/ ;;
 	esac
 done
@@ -75,7 +75,7 @@ for m in $bad; do rm -f $M/$m; done
 	for m in snd-soc-aw88395-lib snd-soc-aw88261 machine_dlkm \
 		rmnet_mem gsim ipam ipanetm rmnet_ctl rmnet_core \
 		qseecom_dlkm smcinvoke_dlkm qcrypto-msm_dlkm qce50_dlkm qcedev-mod_dlkm qrng_dlkm \
-		hdcp_qseecom_dlkm smmu_proxy_dlkm msm_drm msm_kgsl goodix_berlin_core goodix_berlin_spi usbrole frpc-adsprpc msm-vidc camera goodix_fp xiaomi_fp aw8697-haptic ir-spi mi_thermal xiaomi_touch \
+		hdcp_qseecom_dlkm smmu_proxy_dlkm msm_drm msm_kgsl goodix_berlin_core goodix_berlin_spi usbrole frpc-adsprpc msm-vidc camera goodix_fp xiaomi_fp aw8697-haptic ir-spi mi_thermal xiaomi_touch subsys_compat \
 		rfkill cfg80211 cnss_prealloc cnss_utils wlan_firmware_service cnss_nl icnss2 wlan \
 		bluetooth hci_uart btpower; do
 		echo $m.ko
