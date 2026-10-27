@@ -2,8 +2,8 @@
 /*
  * Camera for the 6.12 camera-kernel (camera.ko, Titan 570), from the 5.4
  * yupik camera device tree and redwood's sensor tree; 6.12 has no camera
- * nodes for Yupik. LRME is left out: the 6.12 camera-kernel no longer builds
- * its driver (the CPAS client names stay). 6.12 dropped
+ * nodes for Yupik. LRME is back now that the 5.4 camera driver is ported:
+ * CamX acquires it for every ZSL preview pipeline. 6.12 dropped
  * qcom,iommu-dma-addr-pool, so the DMA API is kept out of everything
  * around each bank's 5.4 pool (cam_smmu maps the ICP firmware, shared and
  * secheap regions itself).
@@ -21,7 +21,9 @@
 				  <&cam_smmu_icp 0x0 0x10c00000>,
 				  <&cam_smmu_icp 0xfef00000 0x1100000>,
 				  <&cam_smmu_cpas_cdm 0x0 0x100000>,
-				  <&cam_smmu_cpas_cdm 0xfff00000 0x100000>;
+				  <&cam_smmu_cpas_cdm 0xfff00000 0x100000>,
+				  <&cam_smmu_lrme 0x0 0xd800000>,
+				  <&cam_smmu_lrme 0xfff00000 0x100000>;
 	};
 
 	qcom,cam-req-mgr {
@@ -541,6 +543,36 @@
 			};
 		};
 
+		cam_smmu_lrme: msm_cam_smmu_lrme {
+			compatible = "qcom,msm-cam-smmu-cb";
+			iommus = <&apps_smmu 0x2100 0x20>,
+				<&apps_smmu 0x2120 0x20>;
+			cam-smmu-label = "lrme";
+			qcom,iommu-faults = "non-fatal";
+			stall-disable;
+			memory-region = <&cam_iova>;
+			dma-coherent-hint-cached;
+			lrme_iova_mem_map: iova-mem-map {
+				iova-mem-region-shared {
+					/* Shared region is 100MB long */
+					iova-region-name = "shared";
+					iova-region-start = <0x7400000>;
+					iova-region-len = <0x6400000>;
+					iova-region-id = <0x1>;
+					status = "ok";
+				};
+
+				iova-mem-region-io {
+					/* IO region is approximately 3.8 GB */
+					iova-region-name = "io";
+					iova-region-start = <0xd800000>;
+					iova-region-len = <0xf2700000>;
+					iova-region-id = <0x3>;
+					status = "ok";
+				};
+			};
+		};
+
 		cam_smmu_secure: msm_cam_smmu_secure {
 			compatible = "qcom,msm-cam-smmu-cb";
 			cam-smmu-label = "cam-secure";
@@ -1038,6 +1070,39 @@
 			<0 0 0 600000000 0>;
 		clock-cntl-level = "lowsvs", "svs", "svs_l1",
 				"nominal", "turbo";
+		status = "ok";
+	};
+
+	qcom,cam-lrme {
+		compatible = "qcom,cam-lrme";
+		arch-compat = "lrme";
+		status = "ok";
+	};
+
+	cam_lrme: qcom,lrme {
+		cell-index = <0>;
+		compatible = "qcom,lrme";
+		reg-names = "lrme";
+		reg = <0xac6b000 0x1000>;
+		reg-cam-base = <0x6b000>;
+		interrupt-names = "lrme";
+		interrupts = <GIC_SPI 476 IRQ_TYPE_EDGE_RISING>;
+		regulator-names = "camss-vdd";
+		camss-vdd-supply = <&cam_cc_titan_top_gdsc>;
+		clock-names =
+			"lrme_clk_src",
+			"lrme_clk";
+		clocks =
+			<&camcc CAM_CC_LRME_CLK_SRC>,
+			<&camcc CAM_CC_LRME_CLK>;
+		clock-rates =
+			<240000000 240000000>,
+			<300000000 300000000>,
+			<320000000 320000000>,
+			<400000000 400000000>,
+			<400000000 400000000>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "turbo";
+		src-clock-name = "lrme_clk_src";
 		status = "ok";
 	};
 
