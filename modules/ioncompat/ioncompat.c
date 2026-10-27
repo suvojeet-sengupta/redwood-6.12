@@ -71,6 +71,9 @@ static const struct {
 	{ "spss", 14 },
 	{ "secure_carveout", 15 },
 	{ "system", 25 },
+	/* the names libdmabufheap asks for when it falls back to ION */
+	{ "ion_system_heap", 25 },
+	{ "ion_system_contig_heap", 25 },
 };
 
 /* the same choice as bringup/ionshim.c */

@@ -7,6 +7,10 @@
  *    libmdmdetect reads to find the modem (qcril gives up without it)
  *  - /dev/subsys_<name>: opening it boots the processor, which is how
  *    per_mgr brings the modem up; it keeps running after the last close
+ *  - the devices sit where 5.4 had them, /sys/devices/platform/soc/
+ *    4080000.qcom,mss/subsys3 and so on, because the vendor's SELinux
+ *    policy labels their name files by those paths (vendor_sysfs_ssr);
+ *    anywhere else libmdmdetect is denied reading them
  *  - the ADSP and CDSP are booted once their firmware can be loaded, as
  *    the 5.4 loaders did, and every processor recovers from a crash
  *    instead of taking the phone down
@@ -17,6 +21,8 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/remoteproc.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -24,6 +30,9 @@
 struct subsys {
 	const char *name;	/* the 5.4 name */
 	const char *compat;	/* the remoteproc node */
+	const char *node;	/* the 5.4 PIL device it sat under */
+	int idx;		/* its 5.4 subsysN */
+	struct device *parent;
 	bool autoboot;
 	struct rproc *rproc;
 	struct device dev;
@@ -35,10 +44,12 @@ struct subsys {
 };
 
 static struct subsys subsystems[] = {
-	{ .name = "modem", .compat = "qcom,yupik-modem-pas" },
-	{ .name = "adsp", .compat = "qcom,yupik-adsp-pas", .autoboot = true },
-	{ .name = "cdsp", .compat = "qcom,yupik-cdsp-pas", .autoboot = true },
-	{ .name = "wpss", .compat = "qcom,yupik-wpss-pas" },
+	{ .name = "modem", .compat = "qcom,yupik-modem-pas", .node = "4080000.qcom,mss", .idx = 3 },
+	{ .name = "adsp", .compat = "qcom,yupik-adsp-pas", .node = "17300000.qcom,lpass", .idx = 0,
+	  .autoboot = true },
+	{ .name = "cdsp", .compat = "qcom,yupik-cdsp-pas", .node = "98900000.qcom,turing", .idx = 1,
+	  .autoboot = true },
+	{ .name = "wpss", .compat = "qcom,yupik-wpss-pas", .node = "soc:qcom,wpss@8a00000", .idx = 2 },
 };
 
 static dev_t devt;
@@ -188,9 +199,36 @@ static void subsys_boot_work(struct work_struct *work)
 		schedule_delayed_work(&boot_work, 5 * HZ);
 }
 
+static void parent_release(struct device *dev)
+{
+	kfree(dev);
+}
+
+/* an empty device with the 5.4 PIL device's name, under the soc device */
+static struct device *make_parent(struct device *soc, const char *name)
+{
+	struct device *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+
+	if (!dev)
+		return NULL;
+	device_initialize(dev);
+	dev->parent = soc;
+	dev->release = parent_release;
+	dev_set_name(dev, "%s", name);
+	if (device_add(dev)) {
+		put_device(dev);
+		return NULL;
+	}
+	return dev;
+}
+
 static int __init subsys_compat_init(void)
 {
+	struct device_node *np = of_find_node_by_path("/soc");
+	struct platform_device *soc = np ? of_find_device_by_node(np) : NULL;
 	int i, ret;
+
+	of_node_put(np);
 
 	ret = bus_register(&subsys_bus);
 	if (ret)
@@ -208,10 +246,13 @@ static int __init subsys_compat_init(void)
 		struct subsys *s = &subsystems[i];
 
 		mutex_init(&s->lock);
+		if (soc)
+			s->parent = make_parent(&soc->dev, s->node);
+		s->dev.parent = s->parent;
 		s->dev.bus = &subsys_bus;
 		s->dev.groups = subsys_groups;
 		s->dev.release = subsys_dev_release;
-		dev_set_name(&s->dev, "subsys%d", i);
+		dev_set_name(&s->dev, "subsys%d", s->idx);
 		ret = device_register(&s->dev);
 		if (ret) {
 			put_device(&s->dev);
@@ -225,6 +266,8 @@ static int __init subsys_compat_init(void)
 			      "subsys_%s", s->name);
 	}
 
+	if (soc)
+		put_device(&soc->dev);
 	INIT_DELAYED_WORK(&boot_work, subsys_boot_work);
 	schedule_delayed_work(&boot_work, 10 * HZ);
 	return 0;
@@ -250,6 +293,8 @@ static void __exit subsys_compat_exit(void)
 			device_unregister(&s->dev);
 		if (s->rproc)
 			rproc_put(s->rproc);
+		if (s->parent)
+			device_unregister(s->parent);
 	}
 	class_destroy(subsys_class);
 	unregister_chrdev_region(devt, ARRAY_SIZE(subsystems));
