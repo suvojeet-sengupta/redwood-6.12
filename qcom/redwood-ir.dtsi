@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * redwood's IR blaster: an LED driven by SE15 SPI, as on 5.4. GKI has
+ * rc-core and lirc built in; the mainline ir-spi driver is built as a
+ * module (modules/irspi) and gives /dev/lirc0.
+ */
+
+&qupv3_se15_spi {
+	status = "okay";
+
+	ir-spi@0 {
+		compatible = "ir-spi-led";
+		reg = <0>;
+		spi-max-frequency = <19200000>;
+	};
+};

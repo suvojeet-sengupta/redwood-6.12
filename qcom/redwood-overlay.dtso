@@ -26,6 +26,7 @@
 #include "redwood-camera.dtsi"
 #include "redwood-fingerprint.dtsi"
 #include "redwood-haptics.dtsi"
+#include "redwood-ir.dtsi"
 #include "redwood-audio/yupik-audio.dtsi"
 #include "redwood-audio/redwood-audio-overlay.dtsi"
 
