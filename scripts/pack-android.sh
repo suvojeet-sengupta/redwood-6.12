@@ -24,6 +24,9 @@ tar -xzf $D/system_dlkm_staging_archive.tar.gz -C $OUT/sysdlkm
 find $OUT/sysdlkm -name "*.ko" | while read f; do [ -e $M/$(basename $f) ] || cp $f $M/; done
 cp $A/*.ko $M/
 rm -f $M/hdmi_dlkm.ko
+# The LLCC ECC interrupt fires nonstop on redwood under qcom_edac (close to
+# a million times in 11 s), the CPUs stop petting the watchdog and it bites.
+rm -f $M/qcom_edac.ko
 cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/camera/camera.ko $W/fingerprint/goodix_fp.ko $W/fingerprint/xiaomi_fp.ko $W/haptics/aw8697-haptic.ko $W/ioncompat/ioncompat.ko $W/irspi/ir-spi.ko $W/mithermal/mi_thermal.ko $W/xiaomitouch/xiaomi_touch.ko $M/
 WL=$KP/../vendor/wlan
 cp $WL/qcacld-3.0/wlan.ko $(find $WL/platform -name "*.ko") $M/

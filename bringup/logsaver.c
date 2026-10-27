@@ -28,11 +28,12 @@ static int shim_fd[4] = { -1, -1, -1, -1 };
 static const char *shim_src[4] = { "/ionshim64.so", "/ionshim32.so", "/fstab.test", "/media.sh" };
 static const char *shim_tmp[4] = { "/dev/.shims/ionshim64.so", "/dev/.shims/ionshim32.so", "/dev/.shims/fstab.test", "/dev/.shims/media.sh" };
 static const char *shim_dst[4] = { "/vendor/lib64/libion.so", "/vendor/lib/libion.so", "/vendor/etc/fstab.default", "/vendor/bin/init.qti.media.sh" };
-static const char *shim_label[5] = {
+static const char *shim_label[6] = {
 	"u:object_r:same_process_hal_file:s0", "u:object_r:same_process_hal_file:s0",
 	"u:object_r:vendor_configs_file:s0", "u:object_r:vendor_qti_media_exec:s0",
-	"u:object_r:vendor_configs_file:s0",
+	"u:object_r:vendor_configs_file:s0", "u:object_r:system_file:s0",
 };
+#define NLABELS 6
 static int se_dir = -1;
 
 /*
@@ -44,8 +45,8 @@ static int se_dir = -1;
  */
 static void label_shims(int wfd)
 {
-	static const char *tmp[5] = { "/dev/.shims/ionshim64.so", "/dev/.shims/ionshim32.so", "/dev/.shims/fstab.test",
-				      "/dev/.shims/media.sh", "/dev/.shims/ueventd.rc" };
+	static const char *tmp[NLABELS] = { "/dev/.shims/ionshim64.so", "/dev/.shims/ionshim32.so", "/dev/.shims/fstab.test",
+					    "/dev/.shims/media.sh", "/dev/.shims/ueventd.rc", "/dev/.shims/build.prop" };
 	char cur[128], enf[2];
 	int i, n, ok = 0, err = 0;
 
@@ -58,10 +59,10 @@ static void label_shims(int wfd)
 	}
 	int efd = openat(se_dir, "enforce", O_RDONLY | O_CLOEXEC);
 
-	for (n = 0; n < 4000 && ok < 5; n++) {
+	for (n = 0; n < 4000 && ok < NLABELS; n++) {
 		if (efd >= 0 && pread(efd, enf, 1, 0) == 1 && enf[0] == '1')
 			break;
-		for (i = 0, ok = 0; i < 5; i++) {
+		for (i = 0, ok = 0; i < NLABELS; i++) {
 			ssize_t len;
 
 			if (setxattr(tmp[i], "security.selinux", shim_label[i], strlen(shim_label[i]) + 1, 0))
@@ -71,10 +72,10 @@ static void label_shims(int wfd)
 			if (!strcmp(cur, shim_label[i]))
 				ok++;
 		}
-		if (ok < 5)
+		if (ok < NLABELS)
 			usleep(250);
 	}
-	dprintf(wfd, "<6>logsaver: labelled %d of 5 shims after %d tries (last error %d)\n", ok, n, err);
+	dprintf(wfd, "<6>logsaver: labelled %d of %d shims after %d tries (last error %d)\n", ok, NLABELS, n, err);
 }
 
 static int place_shims(int wfd)
@@ -144,6 +145,43 @@ static int place_shims(int wfd)
 				else
 					dprintf(wfd, "<3>logsaver: ueventd.rc bind failed: %d\n", errno);
 				close(out);
+			}
+		}
+		/*
+		 * Test boots only: adb without a key. /data is in RAM, so every
+		 * boot is a first boot and adb is off on this user build; this
+		 * copy of the ROM's build.prop turns adb on and drops the key
+		 * check, in RAM, for 6.12 test boots only.
+		 */
+		{
+			static const char secure[] = "ro.adb.secure=1";
+			static const char extra[] = "\npersist.sys.usb.config=mtp,adb\n";
+			static char bp[65536];
+			int in = open("/system/build.prop", O_RDONLY | O_CLOEXEC);
+			ssize_t n = in >= 0 ? read(in, bp, sizeof(bp) - sizeof(extra)) : -1;
+			char *p;
+			int out;
+
+			if (in >= 0)
+				close(in);
+			if (n > 0) {
+				bp[n] = 0;
+				p = strstr(bp, secure);
+				if (p)
+					p[sizeof(secure) - 2] = '0';
+				memcpy(bp + n, extra, sizeof(extra) - 1);
+				n += sizeof(extra) - 1;
+			}
+			out = n > 0 ? open("/dev/.shims/build.prop", O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600) : -1;
+			if (out >= 0) {
+				if (write(out, bp, n) == n &&
+				    !mount("/dev/.shims/build.prop", "/system/build.prop", NULL, MS_BIND, NULL))
+					dprintf(wfd, "<6>logsaver: build.prop with adb on\n");
+				else
+					dprintf(wfd, "<3>logsaver: build.prop bind failed: %d\n", errno);
+				close(out);
+			} else {
+				dprintf(wfd, "<3>logsaver: no /system/build.prop to copy: %d\n", errno);
 			}
 		}
 		label_shims(wfd);
