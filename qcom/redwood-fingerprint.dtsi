@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * redwood's side-mounted Goodix fingerprint sensor, from the 5.4 tree. The
+ * sensor is driven from the TEE; the kernel only handles reset, the
+ * interrupt and power (modules/fingerprint).
+ */
+
+&soc {
+	fingerprint_goodix {
+		compatible = "goodix,fingerprint";
+		goodix,gpio-irq = <&tlmm 34 0>;
+		goodix,gpio-reset = <&tlmm 43 0>;
+		l3c_vdd-supply = <&L3C>;
+		status = "okay";
+	};
+
+	xiaomi_fingerprint {
+		compatible = "xiaomi-fingerprint";
+		fingerprint,name = "xiaomi-fingerprint";
+		status = "okay";
+	};
+};

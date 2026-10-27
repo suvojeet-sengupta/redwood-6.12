@@ -24,7 +24,7 @@ tar -xzf $D/system_dlkm_staging_archive.tar.gz -C $OUT/sysdlkm
 find $OUT/sysdlkm -name "*.ko" | while read f; do [ -e $M/$(basename $f) ] || cp $f $M/; done
 cp $A/*.ko $M/
 rm -f $M/hdmi_dlkm.ko
-cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/camera/camera.ko $M/
+cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/camera/camera.ko $W/fingerprint/goodix_fp.ko $W/fingerprint/xiaomi_fp.ko $M/
 cp $(ls $KP/bazel-cache/bazel-cache/*/execroot/_main/bazel-out/k8-fastbuild/bin/vendor/qcom/opensource/datarmnet-ext/mem/lahaina_perf_rmnet_mem/staging/lib/modules/*/extra/vendor/qcom/opensource/datarmnet-ext/mem/rmnet_mem.ko) $M/
 for f in $W/vb/out/*.ko; do
 	case $(basename $f) in
@@ -61,7 +61,7 @@ for m in $bad; do rm -f $M/$m; done
 	for m in snd-soc-aw88395-lib snd-soc-aw88261 machine_dlkm \
 		rmnet_mem gsim ipam ipanetm rmnet_ctl rmnet_core \
 		qseecom_dlkm smcinvoke_dlkm qcrypto-msm_dlkm qce50_dlkm qcedev-mod_dlkm qrng_dlkm \
-		hdcp_qseecom_dlkm smmu_proxy_dlkm msm_drm msm_kgsl goodix_berlin_core goodix_berlin_spi usbrole frpc-adsprpc msm-vidc btpower camera; do
+		hdcp_qseecom_dlkm smmu_proxy_dlkm msm_drm msm_kgsl goodix_berlin_core goodix_berlin_spi usbrole frpc-adsprpc msm-vidc btpower camera goodix_fp xiaomi_fp; do
 		echo $m.ko
 	done
 } | awk '!seen[$0]++' | while read m; do [ -e $M/$m ] && echo $m; done > $M/modules.load
