@@ -1,10 +1,13 @@
 # redwood 6.12 status
 
-Where the Qualcomm 6.12 kernel platform port stands on redwood. Tests run on
-slot b in the bring-up USB shell ([bringup](bringup/README.md)); slot a keeps
-the daily 5.4 system.
+Where the Qualcomm 6.12 kernel platform port stands on redwood. Android test
+boots (`scripts/pack-android.sh`) run the 5.4 ROM's userspace on 6.12 with
+`/data` on tmpfs, so the real userdata is never touched; the earlier work was
+done in the bring-up USB shell ([bringup](bringup/README.md)). The kernel log
+of each test boot lands on the `logdump` partitions (`modules/bootlog`, two
+newest boots kept by `seq`).
 
-Last updated 2026-10-22.
+Last updated 2026-10-28.
 
 ## Works
 
@@ -15,13 +18,59 @@ Last updated 2026-10-22.
 | Display | 1080x2400 at 120 Hz with display-drivers |
 | GPU | Adreno 642L with kgsl |
 | Touch | Goodix Berlin-D with mainline goodix_berlin |
-| Android 17 | reached the setup wizard (with the workarounds in the README) |
+| Android 17 | boots to the UI with adb, apps run (`/data` on tmpfs) |
 | ADSP, CDSP | boot |
-| WPSS | boots, icnss2 QMI connects, firmware reports ready |
-| Modem | boots, both SIMs ready, registers on LTE |
+| Wi-Fi | WPSS boots from `wpss.mdt`, `wlan.ko` loads, scanning works |
+| Modem | both SIMs in service on LTE, qcrild up (signed TIPC) |
+| Mobile data | validated internet on `rmnet_data3` (datarmnet built) |
+| Camera | ICP firmware boots, all four sensors probe, preview frames arrive |
+| /dev/ion | `modules/ioncompat` on top of the DMA-BUF heaps (fingerprint TA, rpcmem) |
 | Battery | charging and fuel gauge readings |
 | Sound card | lahaina-yupikidp-snd-card registers |
 | Speaker | both AW88261 amps play (tone from the bring-up shell is loud and clear) |
+
+## Android test boots
+
+- [x] Shims (`fstab.test`, `build.prop` with adb, `init.usb.configfs.rc`
+      starting adbd) live on `/metadata/redwood612` and get their SELinux
+      labels as xattrs before the policy loads; tmpfs labels set after
+      that never stuck and the boot HAL couldn't read the fstab.
+- [x] `CONFIG_TMPFS_POSIX_ACL`: vold's default ACL on `/data/media/0`
+      failed on tmpfs, user 0 got destroyed and apps crash-looped.
+- [x] `modules/subsys_compat` puts subsystem devices at the 5.4 PIL sysfs
+      paths, so `vendor_sysfs_ssr` applies and libmdmdetect finds the modem.
+- [x] No `qcom_edac`: its LLCC ECC IRQ storm got the phone bitten by the
+      hypervisor watchdog.
+- [ ] Slot b sometimes needs a second boot.
+
+## Camera
+
+- [x] redwood's 5.4 camera driver ported as `modules/camera54` (built from
+      the LineageOS sm8350 techpack with `port.py` and `cam_compat_612.h`),
+      replacing the 6.12 camera-kernel. No UBSAN for the module (one-element
+      trailing arrays); `iommu_map_sg` gets `orig_nents` so the ICP secheap
+      maps whole.
+- [x] LRME back in the device tree: without it CamX found no LRME MMU
+      handle and every ZSL preview pipeline failed with `ENoMemory`.
+- [x] MIUI camera opens, the pipelines build and the first preview frame
+      arrives.
+- [ ] The provider then crashes: Mi's scene detector asks SNPE for the CDSP
+      runtime, the DSP rejects the `ADSP_MMAP_ADD_PAGES` heap grow (no
+      kernel error, so the refusal is DSP side), SNPE throws and dies in
+      the unwind. Same remote heap failure as `audioadsprpcd`.
+- [ ] FORTIFY memcpy warnings on the HFI trailing arrays
+      (`cam_icp_process_stream_settings`, `cam_icp_mgr_destroy_handle`);
+      harmless, but printing them stalls the display.
+
+## Not working yet on Android
+
+- [ ] Bluetooth: stuck at `BLE_TURNING_ON`; the HAL goes for
+      `/bt_firmware/image/msbtfw11.mbn` after `PatchVerReq rsp=1`. btpower
+      and the DT match LineageOS; compare with the 5.4 HAL init next.
+- [ ] Untested on Android: fingerprint (`goodix_fp`, `xiaomi_fp`), vibrator
+      (aw8697), IR (`ir-spi`), mic, earpiece, `mi_thermal`, `xiaomi_touch`.
+- [ ] Battery: Xiaomi's `qcom-battery` sysfs nodes (`real_type`,
+      `authentic`, ...).
 
 ## Wi-Fi (WCN6750)
 
@@ -33,12 +82,11 @@ Last updated 2026-10-22.
       `/lib/firmware`) and the firmware reports ready.
 - [x] No BUG() when the modem's DMS has no MAC
       ([patches/wlan-platform/0002](patches/wlan-platform)).
-- [ ] `wlan.ko` still resets the phone about a second after the firmware is
-      ready, with nothing in the kernel log (looks like a secure-side
-      SMMU/XPU fault). Next: read `minidump` after the reset.
-- [ ] `wlan0` up and scanning.
-- [ ] Add the `soc-wake` and `ep-powersave` smp2p states (icnss2 asks for
-      them; 5.4 never had them).
+- [x] icnss2 gets the soc wake states and the right IOVA window; qcacld
+      builds with its real feature flags and the 5.4 ini path.
+- [x] In Android the vendor keeps the image at `wpss.mdt` (no `qca6750/`),
+      set with `firmware-name`. `wlan0` comes up and scans.
+- [ ] Connect and pass traffic (not tried yet).
 
 ## Audio
 
@@ -92,11 +140,9 @@ Last updated 2026-10-22.
 - [x] Mobile data call: [bringup/datacall.c](bringup/datacall.c) (DPM
       open port, WDA, WDS bind/start) gets an address on `rmnet_data0`, and
       ping over LTE works once WAN RX uses plain skbs.
-- [ ] TCP over mobile data: downlink TCP packets come back from IPA with a
-      deaggregation exception (destination pipe 0) and get dropped, so
-      connections open but no data arrives. ICMP is fine. Probably the
-      DL QMAP/checksum format the modem and IPA agree on.
-- [ ] DNS in the shell (static bionic resolves through netd).
+- [x] In Android: qcrild needs TIPC (the signed GKI modules), and data
+      calls need `rmnet_core`/`rmnet_ctl` from datarmnet
+      (`OEM_DCFAILCAUSE_4` without them). Data validates on `rmnet_data3`.
 - [ ] DMS MAC for Wi-Fi (DMS is up now; icnss2 still has to ask it).
 
 ## Other gaps
@@ -117,6 +163,9 @@ Last updated 2026-10-22.
   structs end in one-element arrays used as flexible ones.
 - [ ] Decode a real stream (through Codec2 once Android boots).
 - [x] FastRPC: redwood's 5.4 adsprpc ported as `modules/adsprpc`; the ADSP
-  channel opens and the audio and sensor PDs come up.
+  channel opens and the audio and sensor PDs come up. CDSP user PDs load
+  skels (mialgo).
+- [ ] FastRPC: the DSPs refuse `ADD_PAGES`/remote heap maps (camera SNPE,
+  `audioadsprpcd`).
 - [ ] FastRPC: 32-bit ioctls, ADSP recovery instead of a panic.
 - [ ] Display still uses `qcom,iommu-dma-addr-pool` (works, but deprecated).
