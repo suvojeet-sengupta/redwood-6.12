@@ -71,6 +71,9 @@ while read m; do grep -q "^$m:" $M/modules.dep || echo "missing from modules.dep
 
 VR=$OUT/vr
 cp -a $AN/v54 $VR
+# First stage init mounts /metadata (shared with slot a) from the vendor
+# ramdisk's fstab, so it must not be formattable there either.
+find $VR -name fstab.default | while read f; do cp $BU/fstab.test $f; done
 mkdir -p $VR/lib/modules $VR/lib/firmware
 cp $M/*.ko $M/modules.dep $M/modules.load $M/modules.alias $M/modules.softdep $VR/lib/modules/
 cp $W/aw88261_acf.bin $VR/lib/firmware/
