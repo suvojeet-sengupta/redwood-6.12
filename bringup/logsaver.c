@@ -20,7 +20,10 @@
  * The 5.4 vendor allocates through ION, which 6.12 does not have. Once
  * Android's init has /vendor mounted, bind mount a libion that uses the
  * DMA-BUF heaps over the vendor's, in init's mount namespace. It only
- * lives in RAM; the vendor partition stays as it is.
+ * lives in RAM; the vendor partition stays as it is. Since
+ * modules/ioncompat gives a real /dev/ion, the ramdisk no longer carries
+ * the libion shims and the vendor's own libion is used: a shim that misses
+ * its label in the race below breaks everything that allocates.
  */
 static int shim_fd[4] = { -1, -1, -1, -1 };
 /* fstab.test mounts /data read-only, so a broken key setup can't write to it */
@@ -64,6 +67,12 @@ static void label_shims(int wfd)
 			break;
 		for (i = 0, ok = 0; i < NLABELS; i++) {
 			ssize_t len;
+
+			/* shims this ramdisk doesn't carry */
+			if (access(tmp[i], F_OK)) {
+				ok++;
+				continue;
+			}
 
 			if (setxattr(tmp[i], "security.selinux", shim_label[i], strlen(shim_label[i]) + 1, 0))
 				err = errno;
@@ -123,29 +132,6 @@ static int place_shims(int wfd)
 					goto unsafe;
 			} else
 				dprintf(wfd, "<6>logsaver: %s on %s\n", shim_src[i], shim_dst[i]);
-		}
-		/* the vendor's ueventd.rc only opens up the AOSP heaps */
-		{
-			static const char rule[] =
-				"\n/dev/dma_heap/qcom,*      0444   system     system\n";
-			static char rc[262144];
-			int in = open("/vendor/etc/ueventd.rc", O_RDONLY | O_CLOEXEC);
-			ssize_t n = in >= 0 ? read(in, rc, sizeof(rc) - sizeof(rule)) : -1;
-			int out;
-
-			if (in >= 0)
-				close(in);
-			out = n > 0 ? open("/dev/.shims/ueventd.rc", O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644) : -1;
-			if (out >= 0) {
-				memcpy(rc + n, rule, sizeof(rule) - 1);
-				n += sizeof(rule) - 1;
-				if (write(out, rc, n) == n &&
-				    !mount("/dev/.shims/ueventd.rc", "/vendor/etc/ueventd.rc", NULL, MS_BIND, NULL))
-					dprintf(wfd, "<6>logsaver: ueventd.rc with the qcom heaps\n");
-				else
-					dprintf(wfd, "<3>logsaver: ueventd.rc bind failed: %d\n", errno);
-				close(out);
-			}
 		}
 		/*
 		 * Test boots only: adb without a key. /data is in RAM, so every

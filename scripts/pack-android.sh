@@ -104,9 +104,7 @@ BR=$OUT/br
 cp -a $AN/b54 $BR
 mv $BR/init $BR/init.android
 $NB/aarch64-linux-android34-clang -static -O2 -o $BR/init $BU/logsaver.c
-$NB/aarch64-linux-android30-clang -shared -fPIC -O2 -Wl,-soname,libion.so -o $BR/ionshim64.so $BU/ionshim.c
-$NB/armv7a-linux-androideabi30-clang -shared -fPIC -O2 -Wl,-soname,libion.so -o $BR/ionshim32.so $BU/ionshim.c
-$NB/llvm-strip $BR/init $BR/ionshim64.so $BR/ionshim32.so
+$NB/llvm-strip $BR/init
 cp $BU/fstab.test $BU/media.sh $BR/
 chmod 755 $BR/init $BR/media.sh
 
