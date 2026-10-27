@@ -12,6 +12,9 @@ sed -e 's#^cameratree := $(srctree)/techpack/camera/drivers#cameratree := $(src)
     -e 's#-I$(srctree)/techpack/camera/include/uapi/camera#-I$(src)/../compat -I$(src)/../include/uapi/camera -I$(src)/../include/uapi -include $(src)/../compat/cam_compat_612.h -include $(src)/../config/yupikcameraconf.h#' \
     -e '/BOARD_VENDOR_KERNEL_MODULES/d' -e '/SPECTRA CAMERA IS BUILT AS DLKM/d' $C/drivers/Makefile > $C/drivers/Kbuild
 echo 'CFLAGS_cam_trace.o := -I$(src)/cam_utils' >> $C/drivers/Kbuild
+# the 5.4 structs end in one-element arrays used as flexible ones, which
+# GKI's UBSAN bounds traps turn into panics (the sensor probe hit one)
+echo 'UBSAN_SANITIZE := n' >> $C/drivers/Kbuild
 make -C $KP/common O=$HOME/k612/mp-lahaina ARCH=arm64 LLVM=1 LLVM_IAS=1 \
 	KBUILD_EXTRA_SYMBOLS=$HOME/k612/vendor-tree/soc-modules.symvers M=$C/drivers \
 	CONFIG_SPECTRA_CAMERA=m CONFIG_SPECTRA_ISP=y CONFIG_SPECTRA_SENSOR=y CONFIG_SPECTRA_ICP=y \
