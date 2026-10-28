@@ -5184,12 +5184,19 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 			dma_attr |= DMA_ATTR_IOMMU_USE_UPSTREAM_HINT;
 		err = fastrpc_buf_alloc(fl, ud->size, dma_attr, ud->flags,
 						USERHEAP_BUF, &rbuf);
-		if (err)
+		if (err) {
+			ADSPRPC_ERR("add pages: alloc of 0x%llx failed: %d\n",
+				(u64)ud->size, err);
 			goto bail;
+		}
 		err = fastrpc_mmap_on_dsp(fl, ud->flags, 0,
 				rbuf->phys, rbuf->size, 0, &raddr);
-		if (err)
+		if (err) {
+			ADSPRPC_ERR("add pages: DSP map of 0x%llx at 0x%llx (cb %d, cid %d) failed: %d\n",
+				(u64)rbuf->size, (u64)rbuf->phys,
+				fl->sctx ? fl->sctx->smmu.cb : -1, fl->cid, err);
 			goto bail;
+		}
 		rbuf->raddr = raddr;
 	} else {
 		uintptr_t va_to_dsp;
@@ -5218,6 +5225,9 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 	}
 	ud->vaddrout = raddr;
  bail:
+	if (err)
+		ADSPRPC_ERR("mmap flags 0x%x fd %d size 0x%llx vaddrin 0x%llx failed: %d\n",
+			ud->flags, ud->fd, (u64)ud->size, (u64)ud->vaddrin, err);
 	if (err) {
 		if (map) {
 			mutex_lock(&fl->map_mutex);
@@ -7067,7 +7077,13 @@ static int __init fastrpc_device_init(void)
 	VERIFY(err, !IS_ERR(me->class));
 	if (err)
 		goto class_create_bail;
-	me->compat = (fops.compat_ioctl == NULL) ? 0 : 1;
+	/*
+	 * On 5.4 compat_ioctl was always set (CONFIG_COMPAT), so this picked
+	 * the mmap/munmap message the DSP firmware expects: method 4 with the
+	 * page count in bytes. The 32-bit ioctls are gone here, but the DSPs
+	 * still answer the old method 2 with AEE_EBADPARM, so keep it on.
+	 */
+	me->compat = 1;
 
 	/*
 	 * Create devices and register with sysfs
