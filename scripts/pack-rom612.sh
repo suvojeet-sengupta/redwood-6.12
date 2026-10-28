@@ -13,7 +13,8 @@ UNPACK=$KP/tools/mkbootimg/unpack_bootimg.py; MK=$KP/tools/mkbootimg/mkbootimg.p
 REL=$(strings $D/Image | sed -n "s/^Linux version \([^ ]*\) .*/\1/p" | head -1)
 M=$OUT/mods/lib/modules/$REL
 bash ~/redwood-6.12/scripts/pack-android.sh > $W/pack-rom612-android.log
-TEST="testguard.ko bootlog.ko logcap.ko"
+# DROP: more modules to leave out, e.g. DROP=qcom_pd_mapper.ko
+TEST="testguard.ko bootlog.ko logcap.ko $DROP"
 
 rm -rf $R; mkdir -p $R
 python3 $UNPACK --boot_img $BOOT --out $R/b >/dev/null
