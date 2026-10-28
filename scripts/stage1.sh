@@ -7,7 +7,9 @@ mkdir -p vendor/qcom/opensource
 ln -sfn ../../../../vendor/audio-kernel vendor/qcom/opensource/audio-kernel
 ln -sfn ../../../../vendor/mm-drivers vendor/qcom/opensource/mm-drivers
 
-python3 build_with_bazel.py -t lahaina perf --skip abl
+# stamp: without it Kleaf sets SOURCE_DATE_EPOCH=0 and the kernel says it was
+# built on Jan 1 1970
+python3 build_with_bazel.py -t lahaina perf --skip abl --config=stamp
 
 C=$KP/bazel-cache
 tools/bazel --output_root=$C --output_user_root=$C/bazel-cache run \
