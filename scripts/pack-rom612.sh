@@ -14,7 +14,9 @@ REL=$(strings $D/Image | sed -n "s/^Linux version \([^ ]*\) .*/\1/p" | head -1)
 M=$OUT/mods/lib/modules/$REL
 bash ~/redwood-6.12/scripts/pack-android.sh > $W/pack-rom612-android.log
 # DROP: more modules to leave out, e.g. DROP=qcom_pd_mapper.ko
+# KEEP: test modules to keep, e.g. KEEP=bootlog.ko to log to logdump
 TEST="testguard.ko bootlog.ko logcap.ko $DROP"
+for k in $KEEP; do TEST=$(echo " $TEST " | sed "s/ $k / /"); done
 
 rm -rf $R; mkdir -p $R
 python3 $UNPACK --boot_img $BOOT --out $R/b >/dev/null
