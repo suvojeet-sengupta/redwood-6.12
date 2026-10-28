@@ -1,4 +1,7 @@
-# redwood 6.12 status
+# redwood 6.12 bring-up log
+
+The step-by-step log of the bring-up, kept as it was written. For where
+things stand now, see the [README](README.md).
 
 Where the Qualcomm 6.12 kernel platform port stands on redwood. Android test
 boots (`scripts/pack-android.sh`) run the 5.4 ROM's userspace on 6.12 with
