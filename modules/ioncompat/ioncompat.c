@@ -77,8 +77,23 @@ static const struct {
 };
 
 /* the same choice as bringup/ionshim.c */
+/* the system heap's id in the ION masks the vendor userspace passes */
+#define ION_SYSTEM_HEAP_MASK	BIT(25)
+
 static const char *pick_heap(u32 mask, u32 flags)
 {
+	/*
+	 * Secure requests first, then the system heap whenever the mask has
+	 * it: ION tried heaps by priority and the system heap came first, so
+	 * Codec2's "any heap" mask (~0) got system memory. Checking the small
+	 * carve-outs first gave it qseecom, and every MediaCodec failed to
+	 * allocate its buffers (no video playback).
+	 */
+	if (flags & (ION_FLAG_SECURE | ION_FLAGS_CP_MASK) || (mask & BIT(11)))
+		goto special;
+	if (mask & ION_SYSTEM_HEAP_MASK)
+		return (flags & ION_FLAG_CACHED) ? "qcom,system" : "qcom,system-uncached";
+special:
 	if (mask & BIT(7))
 		return "qcom,qseecom";
 	if (mask & BIT(1))
