@@ -3,7 +3,7 @@
 # the first stage that fails. FROM=<stage> starts later in the list. Then
 # pack-android.sh packs them with the 5.4 ramdisks in ~/work/android.
 cd ~/work
-stages="stage1 stage-ipa setup-k612 stage2 build-small build-video build-btpower build-camera54 build-fingerprint build-haptics build-ioncompat build-irspi build-mithermal build-xiaomitouch dtbo-fast"
+stages="stage1 stage-ipa setup-k612 stage2 build-small build-video build-btpower build-camera54 build-fingerprint build-haptics build-ioncompat build-irspi build-mithermal build-xiaomitouch build-platform build-qcacld dtbo-fast"
 [ -n "$FROM" ] && stages=${stages#*${FROM%% *}} && stages="$FROM$stages"
 for s in $stages; do
 	echo "== $s"
