@@ -157,6 +157,27 @@ static int msm_dma_put_device_address(u32 flags,
 	return rc;
 }
 
+/*
+ * 6.12's DMA-BUF heaps have no get_flags, so every buffer read as uncached
+ * and non-secure: the CPU cache was never cleaned before the video core
+ * read a bitstream the codec had just written, and decoded frames came out
+ * as blocks of garbage. Give back the flags 5.4's ION reported, from the
+ * heap ioncompat picked for them.
+ */
+static int vidc_dma_buf_flags(struct dma_buf *dbuf, unsigned long *flags)
+{
+	int rc = dma_buf_get_flags(dbuf, flags);
+
+	if (rc || *flags || !dbuf->exp_name)
+		return rc;
+	if (!strcmp(dbuf->exp_name, "qcom,system") ||
+	    !strcmp(dbuf->exp_name, "system"))
+		*flags = ION_FLAG_CACHED;
+	else if (!strncmp(dbuf->exp_name, "qcom,secure-", 12))
+		*flags = ION_FLAG_SECURE;
+	return 0;
+}
+
 struct dma_buf *msm_smem_get_dma_buf(int fd, u32 sid)
 {
 	struct dma_buf *dma_buf;
@@ -213,7 +234,7 @@ int msm_smem_map_dma_buf(struct msm_vidc_inst *inst, struct msm_smem *smem)
 
 	smem->dma_buf = dbuf;
 
-	rc = dma_buf_get_flags(dbuf, &ion_flags);
+	rc = vidc_dma_buf_flags(dbuf, &ion_flags);
 	if (rc) {
 		s_vpr_e(inst->sid, "Failed to get dma buf flags: %d\n", rc);
 		goto fail_map_dma_buf;
@@ -540,7 +561,7 @@ int msm_smem_cache_operations(struct dma_buf *dbuf,
 	}
 
 	/* Return if buffer doesn't support caching */
-	rc = dma_buf_get_flags(dbuf, &flags);
+	rc = vidc_dma_buf_flags(dbuf, &flags);
 	if (rc) {
 		s_vpr_e(sid, "%s: dma_buf_get_flags failed, err %d\n",
 			__func__, rc);
