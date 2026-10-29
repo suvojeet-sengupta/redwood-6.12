@@ -7,7 +7,7 @@ Three repositories make up the 6.12 kernel:
 
 | Repository | What it holds |
 |---|---|
-| [redwood-6.12-kernel](https://github.com/suvojeet-sengupta/redwood-6.12-kernel) (`r48`) | The kernel source, redwood's device tree included |
+| [redwood-6.12-kernel](https://github.com/suvojeet-sengupta/redwood-6.12-kernel) (`main`) | The kernel source, redwood's device tree included |
 | **redwood-6.12** (this one) | The scripts that build and pack it, drivers that live outside the kernel tree, test tools and notes |
 | [device_xiaomi_redwood-kernel-6.12](https://github.com/suvojeet-sengupta/device_xiaomi_redwood-kernel-6.12) | The finished kernel, modules and `dtbo.img` a ROM build uses |
 
@@ -21,12 +21,14 @@ device tree made for the 5.4 kernel can too: the kernel copes with their
 The 6.12 ROM (AOSPA) boots and is usable as a daily phone: display at 120 Hz,
 touch with double tap to wake, GPU, Wi-Fi, Bluetooth, SIMs and mobile data,
 speakers, earpiece, microphones, video, camera, fingerprint, IR blaster,
-charging with Xiaomi's battery authentication, Widevine L1, vibration and
-deep sleep all work.
+charging with Xiaomi's battery authentication, Widevine L1, USB file
+transfer, vibration and deep sleep all work, on Linux 6.12.96.
 
 Still open:
 
 - Fast PD charging (67 W): the charger firmware reports no PD contract yet.
+- 90 and 60 Hz: switching the panel away from 120 Hz floods the DSI host
+  with FIFO errors, so it stays at 120 Hz.
 
 [STATUS.md](STATUS.md) is the step-by-step bring-up log.
 
@@ -36,7 +38,7 @@ The scripts expect this layout on the build machine:
 
 | Path | What |
 |---|---|
-| `~/redwood-6.12-kernel` | The kernel source (`r48`), set up as its README says |
+| `~/redwood-6.12-kernel` | The kernel source (`main`), set up as its README says |
 | `~/redwood-6.12` | This repository |
 | `~/work` | Scratch space; the 5.4 ROM ramdisks go in `~/work/android` |
 

@@ -3,7 +3,7 @@
 These turn a [redwood-6.12-kernel](https://github.com/suvojeet-sengupta/redwood-6.12-kernel)
 tree into a kernel, modules and images for redwood. They expect:
 
-- the kernel source at `~/redwood-6.12-kernel` (branch `r48`),
+- the kernel source at `~/redwood-6.12-kernel` (branch `main`),
 - this repository at `~/redwood-6.12`,
 - scratch space in `~/work`, with the 5.4 ROM's ramdisks unpacked in
   `~/work/android` for the packing scripts,
