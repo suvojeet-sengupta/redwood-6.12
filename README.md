@@ -27,7 +27,6 @@ deep sleep all work.
 Still open:
 
 - Fast PD charging (67 W): the charger firmware reports no PD contract yet.
-- `memlat` doesn't load (redwood's CPUCP firmware lacks the SCMI protocols).
 
 [STATUS.md](STATUS.md) is the step-by-step bring-up log.
 
