@@ -32,9 +32,14 @@ struct ion_prefetch_region {
 	u32 vmid;
 };
 
-#ifndef DMA_ATTR_DELAYED_UNMAP
-#define DMA_ATTR_DELAYED_UNMAP		0
-#endif
+/*
+ * DMA_ATTR_DELAYED_UNMAP keeps one IOVA per buffer for the buffer's life,
+ * as 5.4's lazy mapping did. The driver relies on it: venus names reference
+ * frames by device address, and the release-buffer-reference handling finds
+ * the buffer by that address. Without it every queue maps the buffer at a
+ * new address, references are never released and playback starves.
+ */
+#include <linux/qcom-dma-mapping.h>
 #ifndef DMA_ATTR_IOMMU_USE_UPSTREAM_HINT
 #define DMA_ATTR_IOMMU_USE_UPSTREAM_HINT 0
 #endif
