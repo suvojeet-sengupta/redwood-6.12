@@ -5,6 +5,8 @@
 
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/kernfs.h>
+#include <linux/xattr.h>
 #include "msm_vidc.h"
 #include "msm_vidc_common.h"
 #include "msm_vidc_debug.h"
@@ -461,6 +463,28 @@ static int msm_vidc_register_video_device(enum session_type sess_type,
 	}
 	return 0;
 }
+/*
+ * redwood: first stage init loads this module, so sku_version exists before
+ * the SELinux policy and keeps the plain sysfs label until ueventd's
+ * coldboot restorecon reaches it. init.qti.media.sh reads it at early-init,
+ * while coldboot still runs; it was denied, picked the yupik v0 media
+ * profiles that redwood doesn't ship, and zygote aborted. Give the node now
+ * the label the QTI file_contexts give it; SELinux takes it from the xattr
+ * once the policy loads.
+ */
+static void msm_vidc_label_sku_version(struct device *dev)
+{
+	static const char ctx[] = "u:object_r:vendor_sysfs_sku:s0";
+	struct kernfs_node *kn;
+
+	kn = kernfs_find_and_get(dev->kobj.sd, "sku_version");
+	if (!kn)
+		return;
+	if (kernfs_xattr_set(kn, XATTR_NAME_SELINUX, ctx, sizeof(ctx), 0))
+		d_vpr_e("Failed to label sku_version\n");
+	kernfs_put(kn);
+}
+
 static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -489,6 +513,7 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 		d_vpr_e("Failed to create attributes\n");
 		goto err_core_init;
 	}
+	msm_vidc_label_sku_version(&pdev->dev);
 
 	core->id = MSM_VIDC_CORE_VENUS;
 
