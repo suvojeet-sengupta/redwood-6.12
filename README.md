@@ -21,14 +21,12 @@ device tree made for the 5.4 kernel can too: the kernel copes with their
 The 6.12 ROM (AOSPA) boots and is usable as a daily phone: display at 120 Hz,
 touch with double tap to wake, GPU, Wi-Fi, Bluetooth, SIMs and mobile data,
 speakers, earpiece, microphones, video, camera, fingerprint, IR blaster,
-charging with Xiaomi's battery authentication, vibration and deep sleep all
-work.
+charging with Xiaomi's battery authentication, Widevine L1, vibration and
+deep sleep all work.
 
 Still open:
 
 - Fast PD charging (67 W): the charger firmware reports no PD contract yet.
-- Widevine L1 and `feature_enabler_client`: the 6.12 `smcinvoke` driver
-  changed its ioctl layout, which the 5.4 vendor libraries don't speak yet.
 - `memlat` doesn't load (redwood's CPUCP firmware lacks the SCMI protocols).
 
 [STATUS.md](STATUS.md) is the step-by-step bring-up log.
