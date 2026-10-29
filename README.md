@@ -18,8 +18,8 @@ redwood device tree's `clo-6.12` branch already uses it.
 
 The 6.12 ROM (AOSPA) boots and is usable as a daily phone: display at 120 Hz,
 touch, GPU, Wi-Fi, Bluetooth, SIMs and mobile data, speakers, microphones,
-video, charging, battery readings and vibration all work. Camera,
-fingerprint and the IR blaster are ported but need more testing.
+video, camera, fingerprint, IR blaster, charging, battery readings and
+vibration all work.
 
 Still open:
 
