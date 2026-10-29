@@ -13,6 +13,9 @@ rm -rf $W/touch $W/subsys_compat $W/usbrole
 cp -r ~/redwood-6.12/modules/touch ~/redwood-6.12/modules/subsys_compat ~/redwood-6.12/modules/usbrole $W/
 T=$KP/common/drivers/input/touchscreen
 cp $T/goodix_berlin_core.c $T/goodix_berlin_spi.c $T/goodix_berlin.h $W/touch/
+# double tap to wake; it calls into xiaomi_touch, so build-xiaomitouch runs first
+python3 ~/redwood-6.12/modules/touch/dt2w.py $W/touch ~/redwood-6.12/modules/xiaomitouch/xiaomi_touch.h \
+	$SOC/include/linux/soc/qcom/panel_event_notifier.h
 mkdir -p ~/redwood-6.12-kernel/vendor/qcom/opensource
 ln -sfn $W/securemsm-kernel ~/redwood-6.12-kernel/vendor/qcom/opensource/securemsm-kernel
 MK="make -C $KP/common O=$M ARCH=arm64 LLVM=1 LLVM_IAS=1 KBUILD_EXTRA_SYMBOLS=$SYM -j64"
@@ -23,7 +26,8 @@ $MK M=$W/graphics-kernel KGSL_PATH=$W/graphics-kernel CONFIG_ARCH_LAHAINA=y CONF
 	KCFLAGS="-I$KP/common/drivers/devfreq" SOCINCLUDE="-I$SOC/include -I$SOC/include/uapi $FENCE" modules > $W/gpu.log 2>&1
 $MK M=$W/securemsm-kernel SSG_MODULE_ROOT=$W/securemsm-kernel CONFIG_ARCH_LAHAINA=y CONFIG_DISABLE_TEST_MODULES=y \
 	CONFIG_QSEECOM=m SOCINCLUDE="-I$SOC/include -I$SOC/include/uapi" modules > $W/securemsm.log 2>&1
-for d in touch subsys_compat usbrole; do $MK M=$W/$d modules > $W/$d.log 2>&1; done
+$MK M=$W/touch KBUILD_EXTRA_SYMBOLS="$SYM $HOME/work/xiaomitouch/Module.symvers" modules > $W/touch.log 2>&1
+for d in subsys_compat usbrole; do $MK M=$W/$d modules > $W/$d.log 2>&1; done
 mkdir -p $W/out && rm -f $W/out/*.ko
 find $W/display-drivers $W/graphics-kernel $W/securemsm-kernel $W/touch $W/subsys_compat $W/usbrole -name "*.ko" -exec cp {} $W/out/ \;
 ls $W/out
