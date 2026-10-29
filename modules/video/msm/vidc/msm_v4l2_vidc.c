@@ -5,7 +5,8 @@
 
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/kernfs.h>
+#include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/xattr.h>
 #include "msm_vidc.h"
 #include "msm_vidc_common.h"
@@ -469,20 +470,34 @@ static int msm_vidc_register_video_device(enum session_type sess_type,
  * coldboot restorecon reaches it. init.qti.media.sh reads it at early-init,
  * while coldboot still runs; it was denied, picked the yupik v0 media
  * profiles that redwood doesn't ship, and zygote aborted. Give the node now
- * the label the QTI file_contexts give it; SELinux takes it from the xattr
- * once the policy loads.
+ * the label the QTI file_contexts give it, as restorecon would; SELinux
+ * takes it from the xattr once the policy loads. First stage init has
+ * mounted /sys by the time it loads modules.
  */
 static void msm_vidc_label_sku_version(struct device *dev)
 {
 	static const char ctx[] = "u:object_r:vendor_sysfs_sku:s0";
-	struct kernfs_node *kn;
+	char *kpath, *spath;
+	struct path path;
+	int rc;
 
-	kn = kernfs_find_and_get(dev->kobj.sd, "sku_version");
-	if (!kn)
+	kpath = kobject_get_path(&dev->kobj, GFP_KERNEL);
+	if (!kpath)
 		return;
-	if (kernfs_xattr_set(kn, XATTR_NAME_SELINUX, ctx, sizeof(ctx), 0))
-		d_vpr_e("Failed to label sku_version\n");
-	kernfs_put(kn);
+	spath = kasprintf(GFP_KERNEL, "/sys%s/sku_version", kpath);
+	kfree(kpath);
+	if (!spath)
+		return;
+
+	rc = kern_path(spath, 0, &path);
+	if (!rc) {
+		rc = vfs_setxattr(&nop_mnt_idmap, path.dentry,
+				  XATTR_NAME_SELINUX, ctx, sizeof(ctx), 0);
+		path_put(&path);
+	}
+	if (rc)
+		d_vpr_e("Failed to label %s: %d\n", spath, rc);
+	kfree(spath);
 }
 
 static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
