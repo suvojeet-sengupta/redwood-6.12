@@ -1,0 +1,6 @@
+# The Bluetooth SLIMbus audio codec from CLO's bt-kernel
+# (LA.VENDOR.16.2.8.r1-06100-LAHAINA.0, slimbus/), built as lahaina does:
+# bt_fm_slim with CONFIG_BTFM_SLIM.
+ccflags-y += -I$(src)/include -DCONFIG_BTFM_SLIM
+obj-m += bt_fm_slim.o
+bt_fm_slim-objs := btfm_slim.o btfm_slim_codec.o btfm_slim_slave.o

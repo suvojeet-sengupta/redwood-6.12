@@ -27,7 +27,7 @@ rm -f $M/hdmi_dlkm.ko
 # The LLCC ECC interrupt fires nonstop on redwood under qcom_edac (close to
 # a million times in 11 s), the CPUs stop petting the watchdog and it bites.
 rm -f $M/qcom_edac.ko
-cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/camera54/drivers/camera.ko $W/fingerprint/goodix_fp.ko $W/fingerprint/xiaomi_fp.ko $W/haptics/aw8697-haptic.ko $W/ioncompat/ioncompat.ko $W/irspi/ir-spi.ko $W/mithermal/mi_thermal.ko $W/xiaomitouch/xiaomi_touch.ko $M/
+cp $W/speaker/*.ko $W/testguard/testguard.ko $W/bootlog/bootlog.ko $W/logcap/logcap.ko $W/adsprpc/frpc-adsprpc.ko $W/video/msm-vidc.ko $W/btpower/btpower.ko $W/btfmslim/bt_fm_slim.ko $W/camera54/drivers/camera.ko $W/fingerprint/goodix_fp.ko $W/fingerprint/xiaomi_fp.ko $W/haptics/aw8697-haptic.ko $W/ioncompat/ioncompat.ko $W/irspi/ir-spi.ko $W/mithermal/mi_thermal.ko $W/xiaomitouch/xiaomi_touch.ko $M/
 WL=$KP/../vendor/wlan
 cp $WL/qcacld-3.0/wlan.ko $(find $WL/platform -name "*.ko") $M/
 cp $(ls $KP/bazel-cache/bazel-cache/*/execroot/_main/bazel-out/k8-fastbuild/bin/vendor/qcom/opensource/datarmnet-ext/mem/lahaina_perf_rmnet_mem/staging/lib/modules/*/extra/vendor/qcom/opensource/datarmnet-ext/mem/rmnet_mem.ko) $M/
@@ -77,13 +77,13 @@ for m in $bad; do rm -f $M/$m; done
 		qseecom_dlkm smcinvoke_dlkm qcrypto-msm_dlkm qce50_dlkm qcedev-mod_dlkm qrng_dlkm \
 		hdcp_qseecom_dlkm smmu_proxy_dlkm msm_drm msm_kgsl goodix_berlin_core goodix_berlin_spi usbrole frpc-adsprpc msm-vidc camera goodix_fp xiaomi_fp aw8697-haptic ir-spi mi_thermal xiaomi_touch subsys_compat \
 		rfkill cfg80211 cnss_prealloc cnss_utils wlan_firmware_service cnss_nl icnss2 wlan \
-		bluetooth hci_uart btpower; do
+		bluetooth hci_uart btpower bt_fm_slim; do
 		echo $m.ko
 	done
 } | awk '!seen[$0]++' | while read m; do [ -e $M/$m ] && echo $m; done > $M/modules.load.all
 # Wi-Fi and Bluetooth hang off the signed rfkill: load them last, so a
 # failure there can't stop anything else. qcacld doesn't use mac80211.
-LATE="tipc.ko tipc_diag.ko rfkill.ko cfg80211.ko cnss_prealloc.ko cnss_utils.ko wlan_firmware_service.ko cnss_nl.ko icnss2.ko wlan.ko bluetooth.ko hci_uart.ko btpower.ko"
+LATE="tipc.ko tipc_diag.ko rfkill.ko cfg80211.ko cnss_prealloc.ko cnss_utils.ko wlan_firmware_service.ko cnss_nl.ko icnss2.ko wlan.ko bluetooth.ko hci_uart.ko btpower.ko bt_fm_slim.ko"
 grep -vxF -e mac80211.ko $(for m in $LATE; do echo "-e $m"; done) $M/modules.load.all > $M/modules.load
 for m in $LATE; do [ -e $M/$m ] && echo $m; done >> $M/modules.load
 rm $M/modules.load.all
