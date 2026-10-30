@@ -32,7 +32,7 @@
 
 #include <linux/i2c.h>
 
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <linux/delay.h>
 
@@ -67,8 +67,8 @@
 #endif
 #include <linux/pinctrl/consumer.h>
 
-/* 6.12 dropped devm_gpio_free(); devres frees the gpios with the device */
-#define devm_gpio_free(dev, gpio) do { } while (0)
+/* 6.12 dropped devm_gpiod_put(); devres frees the gpios with the device */
+#define devm_gpiod_put(dev, gpio) do { } while (0)
 
 #include  "ringbuffer.h"
 
@@ -756,15 +756,15 @@ static int awinic_hw_reset(struct awinic *awinic)
 
 	if (!awinic->enable_pin_control) {
 
-		if (awinic && gpio_is_valid(awinic->reset_gpio)) {
+		if (awinic && (awinic->reset_gpio)) {
 
-			gpio_set_value_cansleep(awinic->reset_gpio, 0);
+			gpiod_set_value_cansleep(awinic->reset_gpio, 0);
 
 			aw_info("%s pull down1\n", __func__);
 
 			usleep_range(5000, 5500);
 
-			gpio_set_value_cansleep(awinic->reset_gpio, 1);
+			gpiod_set_value_cansleep(awinic->reset_gpio, 1);
 
 			aw_info("%s pull up1\n", __func__);
 
@@ -953,15 +953,23 @@ static int awinic_parse_dt(struct awinic *awinic, struct device *dev,
 
 {
 
-	awinic->reset_gpio = of_get_named_gpio(np, "reset-gpio", 0);
+	/*
 
-	if (awinic->reset_gpio >= 0) {
+	 * The lines are only checked for here: pin control drives reset on
+
+	 * redwood, and the probe requests what it needs once it knows that
+
+	 */
+
+	awinic->reset_gpio = NULL;
+
+	awinic->irq_gpio = NULL;
+
+	if (of_property_present(np, "reset-gpios")) {
 
 		aw_err("%s: reset gpio provided ok\n", __func__);
 
 	} else {
-
-		awinic->reset_gpio = -1;
 
 		aw_err("%s: no reset gpio provided, will not HW reset device\n",
 
@@ -973,9 +981,7 @@ static int awinic_parse_dt(struct awinic *awinic, struct device *dev,
 
 
 
-	awinic->irq_gpio = of_get_named_gpio(np, "irq-gpio", 0);
-
-	if (awinic->irq_gpio < 0) {
+	if (!of_property_present(np, "irq-gpios")) {
 
 		aw_err("%s: no irq gpio provided.\n", __func__);
 
@@ -1089,9 +1095,9 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 	} else {
 
-		awinic->reset_gpio = -1;
+		awinic->reset_gpio = NULL;
 
-		awinic->irq_gpio = -1;
+		awinic->irq_gpio = NULL;
 
 	}
 
@@ -1159,23 +1165,20 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 	if (!awinic->enable_pin_control) {
 
-		if (gpio_is_valid(awinic->reset_gpio)) {
+		awinic->reset_gpio = devm_gpiod_get_optional(&i2c->dev, "reset",
 
-			ret = devm_gpio_request_one(&i2c->dev,
+							     GPIOD_OUT_LOW);
 
-						    awinic->reset_gpio,
+		if (IS_ERR(awinic->reset_gpio)) {
 
-						    GPIOF_OUT_INIT_LOW,
+			ret = PTR_ERR(awinic->reset_gpio);
 
-						    "awinic_rst");
+			awinic->reset_gpio = NULL;
 
-			if (ret) {
+			aw_err("%s: rst request failed\n", __func__);
 
-				aw_err("%s: rst request failed\n", __func__);
+			goto err_reset_gpio_request;
 
-				goto err_reset_gpio_request;
-
-			}
 
 		}
 
@@ -1183,13 +1186,15 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 
 
-	if (gpio_is_valid(awinic->irq_gpio)) {
+	if (awinic->IsUsedIRQ) {
 
-		ret = devm_gpio_request_one(&i2c->dev, awinic->irq_gpio,
+		awinic->irq_gpio = devm_gpiod_get(&i2c->dev, "irq", GPIOD_IN);
 
-					    GPIOF_IN, "awinic_int");
+		if (IS_ERR(awinic->irq_gpio)) {
 
-		if (ret) {
+			ret = PTR_ERR(awinic->irq_gpio);
+
+			awinic->irq_gpio = NULL;
 
 			aw_err("%s: int request failed\n", __func__);
 
@@ -1223,13 +1228,13 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 		if (awinic->aw8697 == NULL) {
 
-			if (gpio_is_valid(awinic->irq_gpio))
+			if ((awinic->irq_gpio))
 
-				devm_gpio_free(&i2c->dev, awinic->irq_gpio);
+				devm_gpiod_put(&i2c->dev, awinic->irq_gpio);
 
-			if (gpio_is_valid(awinic->reset_gpio))
+			if ((awinic->reset_gpio))
 
-				devm_gpio_free(&i2c->dev, awinic->reset_gpio);
+				devm_gpiod_put(&i2c->dev, awinic->reset_gpio);
 
 			devm_kfree(&i2c->dev, awinic);
 
@@ -1273,7 +1278,7 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 		/* aw8697 irq */
 
-		if (gpio_is_valid(awinic->aw8697->irq_gpio) &&
+		if ((awinic->aw8697->irq_gpio) &&
 
 		    !(awinic->aw8697->flags & AW8697_FLAG_SKIP_INTERRUPTS)) {
 
@@ -1285,7 +1290,7 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 			ret = devm_request_threaded_irq(&i2c->dev,
 
-					gpio_to_irq(awinic->aw8697->irq_gpio),
+					gpiod_to_irq(awinic->aw8697->irq_gpio),
 
 					NULL, aw8697_irq, irq_flags,
 
@@ -1297,7 +1302,7 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 					__func__,
 
-					gpio_to_irq(awinic->aw8697->irq_gpio),
+					gpiod_to_irq(awinic->aw8697->irq_gpio),
 
 					ret);
 
@@ -1417,13 +1422,13 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 		if (awinic->aw86927 == NULL) {
 
-			if (gpio_is_valid(awinic->irq_gpio))
+			if ((awinic->irq_gpio))
 
-				devm_gpio_free(&i2c->dev, awinic->irq_gpio);
+				devm_gpiod_put(&i2c->dev, awinic->irq_gpio);
 
-			if (gpio_is_valid(awinic->reset_gpio))
+			if ((awinic->reset_gpio))
 
-				devm_gpio_free(&i2c->dev, awinic->reset_gpio);
+				devm_gpiod_put(&i2c->dev, awinic->reset_gpio);
 
 			devm_kfree(&i2c->dev, awinic);
 
@@ -1475,7 +1480,7 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 		/* aw86927 irq */
 
-		if (gpio_is_valid(awinic->aw86927->irq_gpio) &&
+		if ((awinic->aw86927->irq_gpio) &&
 
 		    !(awinic->aw86927->flags & AW86927_FLAG_SKIP_INTERRUPTS)) {
 
@@ -1487,7 +1492,7 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 			ret = devm_request_threaded_irq(&i2c->dev,
 
-					gpio_to_irq(awinic->aw86927->irq_gpio),
+					gpiod_to_irq(awinic->aw86927->irq_gpio),
 
 					NULL, aw86927_irq, irq_flags,
 
@@ -1499,7 +1504,7 @@ static int awinic_i2c_probe(struct i2c_client *i2c)
 
 					__func__,
 
-					gpio_to_irq(awinic->aw86927->irq_gpio),
+					gpiod_to_irq(awinic->aw86927->irq_gpio),
 
 					ret);
 
@@ -1670,7 +1675,7 @@ err_aw86927_sysfs:
 
 	if (awinic->name == AW86927)
 
-		devm_free_irq(&i2c->dev, gpio_to_irq(awinic->aw86927->irq_gpio),
+		devm_free_irq(&i2c->dev, gpiod_to_irq(awinic->aw86927->irq_gpio),
 
 			      awinic->aw86927);
 
@@ -1700,7 +1705,7 @@ err_aw8697_sysfs:
 
 	if (awinic->name == AW8697)
 
-		devm_free_irq(&i2c->dev, gpio_to_irq(awinic->aw8697->irq_gpio),
+		devm_free_irq(&i2c->dev, gpiod_to_irq(awinic->aw8697->irq_gpio),
 
 			      awinic->aw8697);
 
@@ -1718,15 +1723,15 @@ err_aw8697_parse_dt:
 
 err_id:
 
-	if (gpio_is_valid(awinic->irq_gpio))
+	if ((awinic->irq_gpio))
 
-		devm_gpio_free(&i2c->dev, awinic->irq_gpio);
+		devm_gpiod_put(&i2c->dev, awinic->irq_gpio);
 
 err_irq_gpio_request:
 
-	if (gpio_is_valid(awinic->reset_gpio))
+	if ((awinic->reset_gpio))
 
-		devm_gpio_free(&i2c->dev, awinic->reset_gpio);
+		devm_gpiod_put(&i2c->dev, awinic->reset_gpio);
 
 err_reset_gpio_request:
 
@@ -1770,17 +1775,17 @@ static void awinic_i2c_remove(struct i2c_client *i2c)
 
 
 
-		devm_free_irq(&i2c->dev, gpio_to_irq(awinic->aw8697->irq_gpio),
+		devm_free_irq(&i2c->dev, gpiod_to_irq(awinic->aw8697->irq_gpio),
 
 			      awinic->aw8697);
 
-		if (gpio_is_valid(awinic->aw8697->irq_gpio))
+		if ((awinic->aw8697->irq_gpio))
 
-			devm_gpio_free(&i2c->dev, awinic->aw8697->irq_gpio);
+			devm_gpiod_put(&i2c->dev, awinic->aw8697->irq_gpio);
 
-		if (gpio_is_valid(awinic->aw8697->reset_gpio))
+		if ((awinic->aw8697->reset_gpio))
 
-			devm_gpio_free(&i2c->dev, awinic->aw8697->reset_gpio);
+			devm_gpiod_put(&i2c->dev, awinic->aw8697->reset_gpio);
 
 		if (awinic->aw8697 != NULL) {
 
@@ -1804,17 +1809,17 @@ static void awinic_i2c_remove(struct i2c_client *i2c)
 
 
 
-		devm_free_irq(&i2c->dev, gpio_to_irq(awinic->aw86927->irq_gpio),
+		devm_free_irq(&i2c->dev, gpiod_to_irq(awinic->aw86927->irq_gpio),
 
 			      awinic->aw86927);
 
-		if (gpio_is_valid(awinic->aw86927->irq_gpio))
+		if ((awinic->aw86927->irq_gpio))
 
-			devm_gpio_free(&i2c->dev, awinic->aw86927->irq_gpio);
+			devm_gpiod_put(&i2c->dev, awinic->aw86927->irq_gpio);
 
-		if (gpio_is_valid(awinic->aw86927->reset_gpio))
+		if ((awinic->aw86927->reset_gpio))
 
-			devm_gpio_free(&i2c->dev, awinic->aw86927->reset_gpio);
+			devm_gpiod_put(&i2c->dev, awinic->aw86927->reset_gpio);
 
 		if (awinic->aw86927 != NULL) {
 

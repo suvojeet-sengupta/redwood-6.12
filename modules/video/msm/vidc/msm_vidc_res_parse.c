@@ -141,7 +141,7 @@ static int msm_vidc_load_reg_table(struct msm_vidc_platform_resources *res)
 	int i;
 	int rc = 0;
 
-	if (!of_find_property(pdev->dev.of_node, "qcom,reg-presets", NULL)) {
+	if (!of_property_present(pdev->dev.of_node, "qcom,reg-presets")) {
 		/*
 		 * qcom,reg-presets is an optional property.  It likely won't be
 		 * present if we don't have any register settings to program
@@ -187,7 +187,7 @@ static int msm_vidc_load_qdss_table(struct msm_vidc_platform_resources *res)
 	int i;
 	int rc = 0;
 
-	if (!of_find_property(pdev->dev.of_node, "qcom,qdss-presets", NULL)) {
+	if (!of_property_present(pdev->dev.of_node, "qcom,qdss-presets")) {
 		/*
 		 * qcom,qdss-presets is an optional property. It likely won't be
 		 * present if we don't have any register settings to program
@@ -300,7 +300,7 @@ int msm_vidc_load_u32_table(struct platform_device *pdev,
 	int rc = 0, num_elemts = 0;
 	u32 *ptbl = NULL;
 
-	if (!of_find_property(of_node, table_name, NULL)) {
+	if (!of_property_present(of_node, table_name)) {
 		d_vpr_h("%s not found\n", table_name);
 		return 0;
 	}
@@ -351,8 +351,7 @@ static int msm_vidc_load_allowed_clocks_table(
 		goto exit;
 	}
 
-	if (!of_find_property(pdev->dev.of_node,
-			"qcom,allowed-clock-rates", NULL)) {
+	if (!of_property_present(pdev->dev.of_node, "qcom,allowed-clock-rates")) {
 		d_vpr_h("allowed-clock-rates not found\n");
 		return 0;
 	}
@@ -449,8 +448,7 @@ static int msm_vidc_load_buffer_usage_table(
 	struct platform_device *pdev = res->pdev;
 	struct buffer_usage_set *buffer_usage_set = &res->buffer_usage_set;
 
-	if (!of_find_property(pdev->dev.of_node,
-				"qcom,buffer-type-tz-usage-table", NULL)) {
+	if (!of_property_present(pdev->dev.of_node, "qcom,buffer-type-tz-usage-table")) {
 		/*
 		 * qcom,buffer-type-tz-usage-table is an optional property.  It
 		 * likely won't be present if the core doesn't support content

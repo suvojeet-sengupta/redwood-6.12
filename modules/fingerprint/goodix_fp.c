@@ -6,14 +6,16 @@
  *
  * From redwood's 5.4 kernel (Vajra), ported to 6.12: one-argument
  * class_create(), a void remove(), and the interrupt is requested once
- * and freed on release instead of only when the request failed.
+ * and freed on release instead of only when the request failed. The reset
+ * and interrupt lines use GPIO descriptors (reset-gpios, irq-gpios) instead
+ * of the legacy integer GPIO API.
  */
 
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/fs.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -22,7 +24,6 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeup.h>
 #include <linux/regulator/consumer.h>
@@ -38,7 +39,7 @@ static struct gf_dev {
 	struct input_dev *input;
 	struct regulator *vreg;
 	struct wakeup_source *fp_wakelock;
-	signed irq_gpio, rst_gpio;
+	struct gpio_desc *irq_gpio, *rst_gpio;
 	int irq, irq_requested, irq_enabled;
 } gf;
 
@@ -118,15 +119,12 @@ static inline irqreturn_t gf_irq(int irq, void *handle)
 
 static inline void gf_setup(struct gf_dev *gf_dev)
 {
-	gf_dev->rst_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,
-					     "goodix,gpio-reset", 0);
-	gpio_request(gf_dev->rst_gpio, "gpio-reset");
-	gpio_direction_output(gf_dev->rst_gpio, 1);
-	gf_dev->irq_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,
-					     "goodix,gpio-irq", 0);
-	gpio_request(gf_dev->irq_gpio, "gpio-irq");
-	gpio_direction_input(gf_dev->irq_gpio);
-	gf_dev->irq = gpio_to_irq(gf_dev->irq_gpio);
+	if (gf_dev->rst_gpio)
+		gpiod_direction_output(gf_dev->rst_gpio, 1);
+	if (!gf_dev->irq_gpio)
+		return;
+	gpiod_direction_input(gf_dev->irq_gpio);
+	gf_dev->irq = gpiod_to_irq(gf_dev->irq_gpio);
 	if (!gf_dev->irq_requested &&
 	    !request_threaded_irq(gf_dev->irq, NULL, gf_irq,
 				  IRQF_TRIGGER_RISING | IRQF_ONESHOT, "gf",
@@ -156,11 +154,6 @@ static inline void gf_cleanup(struct gf_dev *gf_dev)
 		free_irq(gf_dev->irq, gf_dev);
 		gf_dev->irq_requested = 0;
 	}
-	if (gpio_is_valid(gf_dev->irq_gpio))
-		gpio_free(gf_dev->irq_gpio);
-	if (gpio_is_valid(gf_dev->rst_gpio))
-		gpio_free(gf_dev->rst_gpio);
-	gf_dev->irq_gpio = gf_dev->rst_gpio = -EINVAL;
 	if (gf_dev->vreg) {
 		if (regulator_is_enabled(gf_dev->vreg))
 			regulator_disable(gf_dev->vreg);
@@ -171,12 +164,12 @@ static inline void gf_cleanup(struct gf_dev *gf_dev)
 
 static inline void gpio_reset(struct gf_dev *gf_dev)
 {
-	if (!gpio_is_valid(gf_dev->rst_gpio))
+	if (!gf_dev->rst_gpio)
 		return;
-	gpio_direction_output(gf_dev->rst_gpio, 1);
-	gpio_set_value(gf_dev->rst_gpio, 0);
+	gpiod_direction_output(gf_dev->rst_gpio, 1);
+	gpiod_set_value(gf_dev->rst_gpio, 0);
 	mdelay(3);
-	gpio_set_value(gf_dev->rst_gpio, 1);
+	gpiod_set_value(gf_dev->rst_gpio, 1);
 	mdelay(3);
 }
 
@@ -255,7 +248,13 @@ static inline int gf_probe(struct platform_device *pdev)
 	unsigned long minor = find_first_zero_bit(minors, N_SPI_MINORS);
 	INIT_LIST_HEAD(&gf_dev->device_entry);
 	gf_dev->spi = pdev;
-	gf_dev->irq_gpio = gf_dev->rst_gpio = -EINVAL;
+	/* both active high; driven only once the sensor is opened */
+	gf_dev->rst_gpio = devm_gpiod_get_optional(&pdev->dev, "reset", GPIOD_ASIS);
+	if (IS_ERR(gf_dev->rst_gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gf_dev->rst_gpio), "reset gpio\n");
+	gf_dev->irq_gpio = devm_gpiod_get_optional(&pdev->dev, "irq", GPIOD_IN);
+	if (IS_ERR(gf_dev->irq_gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gf_dev->irq_gpio), "irq gpio\n");
 	gf_dev->devt = MKDEV(SPIDEV_MAJOR, minor);
 	mutex_lock(&gf_lock);
 	device_create(gf_class, &gf_dev->spi->dev, gf_dev->devt, gf_dev,

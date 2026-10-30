@@ -6900,7 +6900,7 @@ static ssize_t remote_cdsp_status_show(struct device *dev,
 		return 0;
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%d",
+	return sysfs_emit(buf, "%d",
 			me->remote_cdsp_status);
 }
 

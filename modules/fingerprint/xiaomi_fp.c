@@ -4,7 +4,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 
 struct xiaomi_fp_data {
@@ -18,7 +17,7 @@ static inline ssize_t get_fingerdown_event(struct device *dev,
 					   char *buf)
 {
 	struct xiaomi_fp_data *xiaomi_fp = dev_get_drvdata(dev);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", xiaomi_fp->fingerdown);
+	return sysfs_emit(buf, "%d\n", xiaomi_fp->fingerdown);
 }
 
 static inline ssize_t set_fingerdown_event(struct device *dev,
@@ -42,7 +41,7 @@ static inline ssize_t
 get_actpower_event(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct xiaomi_fp_data *xiaomi_fp = dev_get_drvdata(dev);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", xiaomi_fp->actpower);
+	return sysfs_emit(buf, "%d\n", xiaomi_fp->actpower);
 }
 
 static inline ssize_t set_actpower_event(struct device *dev,

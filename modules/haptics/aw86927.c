@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
@@ -1781,7 +1781,7 @@ static int aw86927_rtp_osc_calibration(struct aw86927 *aw86927)
 	aw86927_haptic_play_mode(aw86927, AW86927_RTP_MODE);
 	/* bst mode */
 	aw86927_haptic_bst_mode_config(aw86927, AW86927_BST_MODE_BYPASS);
-	disable_irq(gpio_to_irq(aw86927->irq_gpio));
+	disable_irq(gpiod_to_irq(aw86927->irq_gpio));
 
 	/* haptic go */
 	aw86927_haptic_play_go(aw86927);
@@ -1827,7 +1827,7 @@ static int aw86927_rtp_osc_calibration(struct aw86927 *aw86927)
 		}
 	}
 
-	enable_irq(gpio_to_irq(aw86927->irq_gpio));
+	enable_irq(gpiod_to_irq(aw86927->irq_gpio));
 
 	aw86927->microsecond = ktime_to_us(ktime_sub(aw86927->kend,
 						aw86927->kstart));
@@ -2012,7 +2012,7 @@ static ssize_t aw86927_effect_id_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw86927 *aw86927 = awinic->aw86927;
 
-	return snprintf(buf, PAGE_SIZE, "effect_id =%d\n", aw86927->effect_id);
+	return sysfs_emit(buf, "effect_id =%d\n", aw86927->effect_id);
 }
 
 static ssize_t aw86927_effect_id_store(struct device *dev,
@@ -2044,9 +2044,9 @@ static ssize_t aw86927_f0_check_show(struct device *dev,
 	ssize_t len = 0;
 
 	if (aw86927->f0_cali_status == true)
-		len += snprintf(buf + len, PAGE_SIZE - len, "%d\n", 1);
+		len += sysfs_emit_at(buf, len, "%d\n", 1);
 	if (aw86927->f0_cali_status == false)
-		len += snprintf(buf + len, PAGE_SIZE - len, "%d\n", 0);
+		len += sysfs_emit_at(buf, len, "%d\n", 0);
 
 	return len;
 }
@@ -2058,7 +2058,7 @@ static ssize_t aw86927_f0_value_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw86927 *aw86927 = awinic->aw86927;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", aw86927->f0);
+	return sysfs_emit(buf, "%d\n", aw86927->f0);
 }
 
 /* return buffer size and availbe size */
@@ -2069,16 +2069,11 @@ static ssize_t aw86927_custom_wave_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len +=
-		snprintf(buf + len, PAGE_SIZE - len, "period_size=%d;",
+	len += sysfs_emit_at(buf, len, "period_size=%d;",
 		aw86927->ram.base_addr >> 2);
-	len +=
-		snprintf(buf + len, PAGE_SIZE - len,
-		"max_size=%d;free_size=%d;",
+	len += sysfs_emit_at(buf, len, "max_size=%d;free_size=%d;",
 		get_rb_max_size(), get_rb_free_size());
-	len +=
-		snprintf(buf + len, PAGE_SIZE - len,
-		"custom_wave_id=%d;", CUSTOME_WAVE_ID);
+	len += sysfs_emit_at(buf, len, "custom_wave_id=%d;", CUSTOME_WAVE_ID);
 	return len;
 }
 
@@ -2123,8 +2118,7 @@ static ssize_t aw86927_bst_vol_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"bst_vol_ram=%d, bst_vol_rtp=%d\n",
+	len += sysfs_emit_at(buf, len, "bst_vol_ram=%d, bst_vol_rtp=%d\n",
 			aw86927->info.bst_vol_ram, aw86927->info.bst_vol_rtp);
 	return len;
 }
@@ -2160,8 +2154,7 @@ static ssize_t aw86927_cont_wait_num_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"cont_wait_num = 0x%02X\n",
+	len += sysfs_emit_at(buf, len, "cont_wait_num = 0x%02X\n",
 			aw86927->info.cont_wait_num);
 	return len;
 }
@@ -2192,8 +2185,7 @@ static ssize_t aw86927_cont_drv_lvl_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"cont_drv1_lvl = 0x%02X, cont_drv2_lvl = 0x%02X\n",
+	len += sysfs_emit_at(buf, len, "cont_drv1_lvl = 0x%02X, cont_drv2_lvl = 0x%02X\n",
 			aw86927->info.cont_drv1_lvl,
 			aw86927->info.cont_drv2_lvl);
 	return len;
@@ -2223,8 +2215,7 @@ static ssize_t aw86927_cont_drv_time_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"cont_drv1_time = 0x%02X, cont_drv2_time = 0x%02X\n",
+	len += sysfs_emit_at(buf, len, "cont_drv1_time = 0x%02X, cont_drv2_time = 0x%02X\n",
 			aw86927->info.cont_drv1_time,
 			aw86927->info.cont_drv2_time);
 	return len;
@@ -2254,7 +2245,7 @@ static ssize_t aw86927_cont_brk_time_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "cont_brk_time = 0x%02X\n",
+	len += sysfs_emit_at(buf, len, "cont_brk_time = 0x%02X\n",
 			aw86927->info.cont_brk_time);
 	return len;
 }
@@ -2286,8 +2277,7 @@ static ssize_t aw86927_trig_show(struct device *dev,
 	unsigned char i = 0;
 
 	for (i = 0; i < AW86927_TRIG_NUM; i++) {
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"trig%d: trig_level=%d, trig_polar=%d, pos_enable=%d, pos_sequence=%d, neg_enable=%d, neg_sequence=%d trig_brk=%d, trig_bst=%d\n",
+		len += sysfs_emit_at(buf, len, "trig%d: trig_level=%d, trig_polar=%d, pos_enable=%d, pos_sequence=%d, neg_enable=%d, neg_sequence=%d trig_brk=%d, trig_bst=%d\n",
 				i + 1,
 				aw86927->trig[i].trig_level,
 				aw86927->trig[i].trig_polar,
@@ -2366,7 +2356,7 @@ static ssize_t aw86927_state_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw86927 *aw86927 = awinic->aw86927;
 
-	return snprintf(buf, PAGE_SIZE, "state = %d\n", aw86927->state);
+	return sysfs_emit(buf, "state = %d\n", aw86927->state);
 }
 
 static ssize_t aw86927_state_store(struct device *dev,
@@ -2388,7 +2378,7 @@ static ssize_t aw86927_duration_show(struct device *dev,
 		time_rem = hrtimer_get_remaining(&aw86927->timer);
 		time_ms = ktime_to_ms(time_rem);
 	}
-	return snprintf(buf, PAGE_SIZE, "%lld\n", time_ms);
+	return sysfs_emit(buf, "%lld\n", time_ms);
 }
 
 static ssize_t aw86927_duration_store(struct device *dev,
@@ -2417,7 +2407,7 @@ static ssize_t aw86927_activate_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 
 	/* For now nothing to show */
-	return snprintf(buf, PAGE_SIZE, "%d\n", aw86927->state);
+	return sysfs_emit(buf, "%d\n", aw86927->state);
 }
 
 static ssize_t aw86927_activate_store(struct device *dev,
@@ -2453,7 +2443,7 @@ static ssize_t aw86927_activate_mode_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw86927 *aw86927 = awinic->aw86927;
 
-	return snprintf(buf, PAGE_SIZE, "activate_mode = %d\n",
+	return sysfs_emit(buf, "activate_mode = %d\n",
 			aw86927->activate_mode);
 }
 
@@ -2484,7 +2474,7 @@ static ssize_t aw86927_index_show(struct device *dev,
 
 	aw86927_haptic_get_wav_seq(aw86927, 0x00, &seq);
 	aw86927->index = seq;
-	return snprintf(buf, PAGE_SIZE, "index = %d\n", aw86927->index);
+	return sysfs_emit(buf, "index = %d\n", aw86927->index);
 }
 
 static ssize_t aw86927_index_store(struct device *dev,
@@ -2517,7 +2507,7 @@ static ssize_t aw86927_vmax_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw86927 *aw86927 = awinic->aw86927;
 
-	return snprintf(buf, PAGE_SIZE, "0x%02X\n", aw86927->vmax);
+	return sysfs_emit(buf, "0x%02X\n", aw86927->vmax);
 }
 
 static ssize_t aw86927_vmax_store(struct device *dev,
@@ -2547,7 +2537,7 @@ static ssize_t aw86927_gain_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw86927 *aw86927 = awinic->aw86927;
 
-	return snprintf(buf, PAGE_SIZE, "0x%02X\n", aw86927->gain);
+	return sysfs_emit(buf, "0x%02X\n", aw86927->gain);
 }
 
 static ssize_t aw86927_gain_store(struct device *dev,
@@ -2583,8 +2573,7 @@ static ssize_t aw86927_seq_show(struct device *dev,
 
 	for (i = 0; i < AW86927_SEQUENCER_SIZE; i++) {
 		aw86927_haptic_get_wav_seq(aw86927, i, &reg_val);
-		count += snprintf(buf + count, PAGE_SIZE - count,
-				  "seq%d = 0x%02x\n", i + 1, reg_val);
+		count += sysfs_emit_at(buf, count, "seq%d = 0x%02x\n", i + 1, reg_val);
 		aw86927->seq[i] |= reg_val;
 	}
 	return count;
@@ -2628,8 +2617,7 @@ static ssize_t aw86927_loop_show(struct device *dev,
 	for (i = 0; i < AW86927_SEQUENCER_LOOP_SIZE; i++) {
 		aw86927_haptic_get_wav_loop(aw86927, i, &reg_val);
 		aw86927->loop[i] = reg_val;
-		count += snprintf(buf + count, PAGE_SIZE - count,
-				  "seq%d_loop = %d\n", i,
+		count += sysfs_emit_at(buf, count, "seq%d_loop = %d\n", i,
 				  aw86927->loop[i]);
 	}
 	return count;
@@ -2723,7 +2711,7 @@ static ssize_t aw86927_rtp_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "rtp_cnt = %d\n",
+	len += sysfs_emit_at(buf, len, "rtp_cnt = %d\n",
 			aw86927->rtp_cnt);
 	return len;
 }
@@ -2770,12 +2758,12 @@ static ssize_t aw86927_ram_show(struct device *dev,
 	aw86927_haptic_raminit(aw86927, true);
 	aw86927_haptic_stop(aw86927);
 	aw86927_set_base_addr(aw86927);
-	len += snprintf(buf + len, PAGE_SIZE - len, "aw86927_haptic_ram:\n");
+	len += sysfs_emit_at(buf, len, "aw86927_haptic_ram:\n");
 	for (i = 0; i < aw86927->ram.len; i++) {
 		aw86927_read_ram_data(aw86927, &reg_val);
-		len += snprintf(buf + len, PAGE_SIZE - len, "%02X,", reg_val);
+		len += sysfs_emit_at(buf, len, "%02X,", reg_val);
 	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += sysfs_emit_at(buf, len, "\n");
 	/* RAMINIT Disable */
 	aw86927_haptic_raminit(aw86927, false);
 	return len;
@@ -2814,7 +2802,7 @@ static ssize_t aw86927_ram_update_show(struct device *dev,
 	aw86927_haptic_raminit(aw86927, true);
 	aw86927_haptic_stop(aw86927);
 	aw86927_set_base_addr(aw86927);
-	len += snprintf(buf + len, PAGE_SIZE - len, "aw86927_haptic_ram:\n");
+	len += sysfs_emit_at(buf, len, "aw86927_haptic_ram:\n");
 	while (i < aw86927->ram.len) {
 		if ((aw86927->ram.len - i) < AW_RAMDATA_RD_BUFFER_SIZE)
 			size = aw86927->ram.len - i;
@@ -2823,12 +2811,11 @@ static ssize_t aw86927_ram_update_show(struct device *dev,
 
 		aw86927_i2c_reads(aw86927, AW86927_REG_RAMDATA, ram_data, size);
 		for (j = 0; j < size; j++) {
-			len += snprintf(buf + len, PAGE_SIZE - len,
-					"0x%02X,", ram_data[j]);
+			len += sysfs_emit_at(buf, len, "0x%02X,", ram_data[j]);
 		}
 		i += size;
 	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += sysfs_emit_at(buf, len, "\n");
 	/* RAMINIT Disable */
 	aw86927_haptic_raminit(aw86927, false);
 	return len;
@@ -2861,8 +2848,7 @@ static ssize_t aw86927_ram_num_show(struct device *dev,
 
 	aw86927_haptic_get_ram_number(aw86927);
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"ram_num = %d\n", aw86927->ram.ram_num);
+	len += sysfs_emit_at(buf, len, "ram_num = %d\n", aw86927->ram.ram_num);
 	return len;
 }
 
@@ -2878,7 +2864,7 @@ static ssize_t aw86927_f0_show(struct device *dev,
 	aw86927_haptic_upload_lra(aw86927, AW86927_WRITE_ZERO);
 	aw86927_haptic_cont_get_f0(aw86927);
 	mutex_unlock(&aw86927->lock);
-	len += snprintf(buf + len, PAGE_SIZE - len, "%d\n", aw86927->f0);
+	len += sysfs_emit_at(buf, len, "%d\n", aw86927->f0);
 	return len;
 }
 
@@ -2909,8 +2895,7 @@ static ssize_t aw86927_cali_show(struct device *dev,
 	aw86927_haptic_upload_lra(aw86927, AW86927_F0_CALI);
 	aw86927_haptic_cont_get_f0(aw86927);
 	mutex_unlock(&aw86927->lock);
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"aw86927 cali f0 = %d\n", aw86927->f0);
+	len += sysfs_emit_at(buf, len, "aw86927 cali f0 = %d\n", aw86927->f0);
 	return len;
 }
 
@@ -2941,7 +2926,7 @@ static ssize_t aw86927_f0_save_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "%d\n",
+	len += sysfs_emit_at(buf, len, "%d\n",
 			aw86927->f0_calib_data);
 
 	return len;
@@ -2971,7 +2956,7 @@ static ssize_t aw86927_osc_cali_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "%d\n",
+	len += sysfs_emit_at(buf, len, "%d\n",
 			aw86927->lra_calib_data);
 
 	return len;
@@ -3018,7 +3003,7 @@ static ssize_t aw86927_osc_save_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "%d\n",
+	len += sysfs_emit_at(buf, len, "%d\n",
 			aw86927->lra_calib_data);
 
 	return len;
@@ -3050,8 +3035,7 @@ static ssize_t aw86927_cont_show(struct device *dev,
 
 	mutex_lock(&aw86927->lock);
 	aw86927_haptic_read_cont_f0(aw86927);
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"aw86927 cont f0 = %d\n", aw86927->cont_f0);
+	len += sysfs_emit_at(buf, len, "aw86927 cont f0 = %d\n", aw86927->cont_f0);
 	mutex_unlock(&aw86927->lock);
 	return len;
 }
@@ -3089,7 +3073,7 @@ static ssize_t aw86927_vbat_monitor_show(struct device *dev,
 
 	mutex_lock(&aw86927->lock);
 	aw86927_haptic_get_vbat(aw86927);
-	len += snprintf(buf + len, PAGE_SIZE - len, "vbat=%dmv\n",
+	len += sysfs_emit_at(buf, len, "vbat=%dmv\n",
 			aw86927->vbat);
 	mutex_unlock(&aw86927->lock);
 
@@ -3114,7 +3098,7 @@ static ssize_t aw86927_lra_resistance_show(struct device *dev,
 	ssize_t len = 0;
 
 	aw86927_haptic_get_lra_resistance(aw86927);
-	len += snprintf(buf + len, PAGE_SIZE - len, "%d\n", aw86927->lra);
+	len += sysfs_emit_at(buf, len, "%d\n", aw86927->lra);
 	return len;
 }
 
@@ -3132,7 +3116,7 @@ static ssize_t aw86927_auto_boost_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "auto_boost=%d\n",
+	len += sysfs_emit_at(buf, len, "auto_boost=%d\n",
 			aw86927->auto_boost);
 
 	return len;
@@ -3169,7 +3153,7 @@ static ssize_t aw86927_prctmode_show(struct device *dev,
 
 	aw86927_get_prctmode(aw86927);
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "prctmode=%d\n",
+	len += sysfs_emit_at(buf, len, "prctmode=%d\n",
 			reg_val & 0x08);
 	return len;
 }
@@ -3202,8 +3186,7 @@ static ssize_t aw86927_ram_vbat_comp_show(struct device *dev,
 	struct aw86927 *aw86927 = awinic->aw86927;
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"ram_vbat_comp=%d\n",
+	len += sysfs_emit_at(buf, len, "ram_vbat_comp=%d\n",
 			aw86927->ram_vbat_comp);
 
 	return len;
@@ -3243,8 +3226,7 @@ static ssize_t aw86927_nv_flag_show(struct device *dev,
 	ssize_t len = 0;
 
 	aw_info("%s enter\n", __func__);
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"nv_flag=%d\n",
+	len += sysfs_emit_at(buf, len, "nv_flag=%d\n",
 			aw86927->nv_flag);
 	aw_info("The cat's nv_flag:%d\n",aw86927->nv_flag);
 	return len;
@@ -4020,7 +4002,7 @@ static int aw86927_haptic_rtp_play(struct aw86927 *aw86927)
 
 	aw_info("%s enter\n", __func__);
 	aw86927->rtp_cnt = 0;
-	disable_irq(gpio_to_irq(aw86927->irq_gpio));
+	disable_irq(gpiod_to_irq(aw86927->irq_gpio));
 	while ((!aw86927_haptic_rtp_get_fifo_afs(aw86927)) &&
 		(aw86927->play_mode == AW86927_RTP_MODE) &&
 		!atomic_read(&aw86927->exit_in_rtp_loop)) {
@@ -4053,7 +4035,7 @@ static int aw86927_haptic_rtp_play(struct aw86927 *aw86927)
 			}
 		}
 	}
-	enable_irq(gpio_to_irq(aw86927->irq_gpio));
+	enable_irq(gpiod_to_irq(aw86927->irq_gpio));
 	if (aw86927->play_mode == AW86927_RTP_MODE &&
 		!atomic_read(&aw86927->exit_in_rtp_loop)) {
 		aw86927_haptic_set_rtp_aei(aw86927, true);

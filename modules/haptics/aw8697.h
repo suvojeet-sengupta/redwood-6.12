@@ -6,6 +6,7 @@
  * aw8697.h
  *
  ********************************************************/
+#include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -200,8 +201,8 @@ struct aw8697 {
 	unsigned int lra_calib_data;
 	unsigned int f0_calib_data;
 
-	int reset_gpio;
-	int irq_gpio;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *irq_gpio;
 
 	unsigned char hwen_flag;
 	unsigned char flags;

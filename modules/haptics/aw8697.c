@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
@@ -1267,7 +1267,7 @@ static int aw8697_haptic_rtp_init(struct aw8697 *aw8697)
 	unsigned int period_size = aw8697->ram.base_addr >> 2;
 
 	aw8697->rtp_cnt = 0;
-	disable_irq(gpio_to_irq(aw8697->irq_gpio));
+	disable_irq(gpiod_to_irq(aw8697->irq_gpio));
 	while ((!aw8697_haptic_rtp_get_fifo_afi(aw8697)) &&
 	       (aw8697->play_mode == AW8697_HAPTIC_RTP_MODE) &&
 	       !atomic_read(&aw8697->exit_in_rtp_loop)) {
@@ -1299,7 +1299,7 @@ static int aw8697_haptic_rtp_init(struct aw8697 *aw8697)
 			}
 		}
 	}
-	enable_irq(gpio_to_irq(aw8697->irq_gpio));
+	enable_irq(gpiod_to_irq(aw8697->irq_gpio));
 	if (aw8697->play_mode == AW8697_HAPTIC_RTP_MODE &&
 	    !atomic_read(&aw8697->exit_in_rtp_loop)) {
 		aw8697_haptic_set_rtp_aei(aw8697, true);
@@ -1543,7 +1543,7 @@ static int aw8697_rtp_osc_calibration(struct aw8697 *aw8697)
 	aw8697_i2c_write_bits(aw8697, AW8697_REG_DBGCTRL,
 			      AW8697_BIT_DBGCTRL_INT_MODE_MASK,
 			      AW8697_BIT_DBGCTRL_INT_MODE_EDGE);
-	disable_irq(gpio_to_irq(aw8697->irq_gpio));
+	disable_irq(gpiod_to_irq(aw8697->irq_gpio));
 	/* haptic start */
 	aw8697_haptic_start(aw8697);
 	while (1) {
@@ -1580,7 +1580,7 @@ static int aw8697_rtp_osc_calibration(struct aw8697 *aw8697)
 			break;
 		}
 	}
-	enable_irq(gpio_to_irq(aw8697->irq_gpio));
+	enable_irq(gpiod_to_irq(aw8697->irq_gpio));
 
 	aw8697->osc_cali_flag = 0;
 	aw8697->microsecond = (aw8697->end.tv_sec - aw8697->start.tv_sec)*1000000 +
@@ -3094,7 +3094,7 @@ static ssize_t aw8697_activate_test_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 
 	/* For now nothing to show */
-	return snprintf(buf, PAGE_SIZE, "%d\n", aw8697->test_val);
+	return sysfs_emit(buf, "%d\n", aw8697->test_val);
 }
 
 static ssize_t aw8697_activate_test_store(struct device *dev,
@@ -3210,8 +3210,7 @@ static ssize_t aw8697_i2c_reg_show(struct device *dev,
 		if (!(aw8697_reg_access[i] & REG_RD_ACCESS))
 			continue;
 		aw8697_i2c_read(aw8697, i, &reg_val);
-		len +=
-		    snprintf(buf + len, PAGE_SIZE - len, "reg:0x%02x=0x%02x\n",
+		len += sysfs_emit_at(buf, len, "reg:0x%02x=0x%02x\n",
 			     i, reg_val);
 	}
 	return len;
@@ -3256,7 +3255,7 @@ static ssize_t aw8697_i2c_ram_show(struct device *dev,
 			 (unsigned char)(aw8697->ram.base_addr >> 8));
 	aw8697_i2c_write(aw8697, AW8697_REG_RAMADDRL,
 			 (unsigned char)(aw8697->ram.base_addr & 0x00ff));
-	len += snprintf(buf + len, PAGE_SIZE - len, "aw8697_haptic_ram:\n");
+	len += sysfs_emit_at(buf, len, "aw8697_haptic_ram:\n");
 	while (i < aw8697->ram.len) {
 		if ((aw8697->ram.len - i) < AW_RAMDATA_RD_BUFFER_SIZE)
 			size = aw8697->ram.len - i;
@@ -3265,12 +3264,11 @@ static ssize_t aw8697_i2c_ram_show(struct device *dev,
 
 		aw8697_i2c_reads(aw8697, AW8697_REG_RAMDATA, ram_data, size);
 		for (j = 0; j < size; j++) {
-			len += snprintf(buf + len, PAGE_SIZE - len,
-					"0x%02X,", ram_data[j]);
+			len += sysfs_emit_at(buf, len, "0x%02X,", ram_data[j]);
 		}
 		i += size;
 	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += sysfs_emit_at(buf, len, "\n");
 	/* RAMINIT Disable */
 	aw8697_i2c_write_bits(aw8697, AW8697_REG_SYSCTRL,
 			      AW8697_BIT_SYSCTRL_RAMINIT_MASK,
@@ -3292,7 +3290,7 @@ static ssize_t aw8697_duration_show(struct device *dev,
 		time_ms = ktime_to_ms(time_rem);
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%lld\n", time_ms);
+	return sysfs_emit(buf, "%lld\n", time_ms);
 }
 
 static ssize_t aw8697_duration_store(struct device *dev,
@@ -3324,7 +3322,7 @@ static ssize_t aw8697_activate_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 
 	/* For now nothing to show */
-	return snprintf(buf, PAGE_SIZE, "%d\n", aw8697->state);
+	return sysfs_emit(buf, "%d\n", aw8697->state);
 }
 
 static ssize_t aw8697_activate_store(struct device *dev,
@@ -3364,7 +3362,7 @@ static ssize_t aw8697_activate_mode_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw8697 *aw8697 = awinic->aw8697;
 
-	return snprintf(buf, PAGE_SIZE, "activate_mode=%d\n",
+	return sysfs_emit(buf, "activate_mode=%d\n",
 			aw8697->activate_mode);
 }
 
@@ -3397,7 +3395,7 @@ static ssize_t aw8697_index_show(struct device *dev,
 	aw8697_i2c_read(aw8697, AW8697_REG_WAVSEQ1, &reg_val);
 	aw8697->index = reg_val;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", aw8697->index);
+	return sysfs_emit(buf, "%d\n", aw8697->index);
 }
 
 static ssize_t aw8697_index_store(struct device *dev,
@@ -3428,7 +3426,7 @@ static ssize_t aw8697_vmax_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw8697 *aw8697 = awinic->aw8697;
 
-	return snprintf(buf, PAGE_SIZE, "0x%02x\n", aw8697->vmax);
+	return sysfs_emit(buf, "0x%02x\n", aw8697->vmax);
 }
 
 static ssize_t aw8697_vmax_store(struct device *dev,
@@ -3459,7 +3457,7 @@ static ssize_t aw8697_gain_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw8697 *aw8697 = awinic->aw8697;
 
-	return snprintf(buf, PAGE_SIZE, "0x%02x\n", aw8697->level);
+	return sysfs_emit(buf, "0x%02x\n", aw8697->level);
 }
 
 static ssize_t aw8697_gain_store(struct device *dev,
@@ -3495,8 +3493,7 @@ static ssize_t aw8697_seq_show(struct device *dev,
 
 	for (i = 0; i < AW8697_SEQUENCER_SIZE; i++) {
 		aw8697_i2c_read(aw8697, AW8697_REG_WAVSEQ1 + i, &reg_val);
-		count += snprintf(buf + count, PAGE_SIZE - count,
-				  "seq%d: 0x%02x\n", i + 1, reg_val);
+		count += sysfs_emit_at(buf, count, "seq%d: 0x%02x\n", i + 1, reg_val);
 		aw8697->seq[i] |= reg_val;
 	}
 	return count;
@@ -3536,12 +3533,9 @@ static ssize_t aw8697_loop_show(struct device *dev,
 		aw8697->loop[i * 2 + 0] = (reg_val >> 4) & 0x0F;
 		aw8697->loop[i * 2 + 1] = (reg_val >> 0) & 0x0F;
 
-		count += snprintf(buf + count, PAGE_SIZE - count,
-				  "seq%d loop: 0x%02x\n", i * 2 + 1,
+		count += sysfs_emit_at(buf, count, "seq%d loop: 0x%02x\n", i * 2 + 1,
 				  aw8697->loop[i * 2 + 0]);
-		count +=
-		    snprintf(buf + count, PAGE_SIZE - count,
-			     "seq%d loop: 0x%02x\n", i * 2 + 2,
+		count += sysfs_emit_at(buf, count, "seq%d loop: 0x%02x\n", i * 2 + 2,
 			     aw8697->loop[i * 2 + 1]);
 	}
 	return count;
@@ -3575,8 +3569,7 @@ static ssize_t aw8697_rtp_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "rtp play: %d\n",
+	len += sysfs_emit_at(buf, len, "rtp play: %d\n",
 		     aw8697->rtp_cnt);
 
 	return len;
@@ -3617,7 +3610,7 @@ static ssize_t aw8697_ram_update_show(struct device *dev,
 {
 	ssize_t len = 0;
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "sram update mode\n");
+	len += sysfs_emit_at(buf, len, "sram update mode\n");
 	return len;
 }
 
@@ -3682,8 +3675,7 @@ static ssize_t aw8697_cali_show(struct device *dev,
 	aw8697_haptic_upload_lra(aw8697, AW8697_F0_CALI_LRA);
 	aw8697_haptic_get_f0(aw8697);
 	mutex_unlock(&aw8697->lock);
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "aw8697 cali f0 = %d\n",
+	len += sysfs_emit_at(buf, len, "aw8697 cali f0 = %d\n",
 		     aw8697->f0);
 	return len;
 }
@@ -3718,8 +3710,7 @@ static ssize_t aw8697_cont_show(struct device *dev,
 	ssize_t len = 0;
 
 	aw8697_haptic_read_cont_f0(aw8697);
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "aw8697 cont f0 = %d\n",
+	len += sysfs_emit_at(buf, len, "aw8697 cont f0 = %d\n",
 		     aw8697->cont_f0);
 	return len;
 }
@@ -3751,9 +3742,7 @@ static ssize_t aw8697_cont_td_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len,
-		     "aw8697 cont delay time = 0x%04x\n", aw8697->info.cont_td);
+	len += sysfs_emit_at(buf, len, "aw8697 cont delay time = 0x%04x\n", aw8697->info.cont_td);
 	return len;
 }
 
@@ -3785,12 +3774,9 @@ static ssize_t aw8697_cont_drv_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "aw8697 cont drv level = %d\n",
+	len += sysfs_emit_at(buf, len, "aw8697 cont drv level = %d\n",
 		     aw8697->info.cont_drv_lvl);
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len,
-		     "aw8697 cont drv level overdrive= %d\n",
+	len += sysfs_emit_at(buf, len, "aw8697 cont drv level overdrive= %d\n",
 		     aw8697->info.cont_drv_lvl_ov);
 	return len;
 }
@@ -3822,16 +3808,11 @@ static ssize_t aw8697_custom_wave_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-		snprintf(buf + len, PAGE_SIZE - len, "period_size=%d;",
+	len += sysfs_emit_at(buf, len, "period_size=%d;",
 		aw8697->ram.base_addr >> 2);
-	len +=
-		snprintf(buf + len, PAGE_SIZE - len,
-		"max_size=%d;free_size=%d;",
+	len += sysfs_emit_at(buf, len, "max_size=%d;free_size=%d;",
 		get_rb_max_size(), get_rb_free_size());
-	len +=
-		snprintf(buf + len, PAGE_SIZE - len,
-		"custom_wave_id=%d;", CUSTOME_WAVE_ID);
+	len += sysfs_emit_at(buf, len, "custom_wave_id=%d;", CUSTOME_WAVE_ID);
 	return len;
 }
 
@@ -3877,8 +3858,7 @@ static ssize_t aw8697_cont_num_brk_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "aw8697 cont break num = %d\n",
+	len += sysfs_emit_at(buf, len, "aw8697 cont break num = %d\n",
 		     aw8697->info.cont_num_brk);
 	return len;
 }
@@ -3913,9 +3893,7 @@ static ssize_t aw8697_cont_zc_thr_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len,
-		     "aw8697 cont zero cross thr = 0x%04x\n",
+	len += sysfs_emit_at(buf, len, "aw8697 cont zero cross thr = 0x%04x\n",
 		     aw8697->info.cont_zc_thr);
 	return len;
 }
@@ -3951,8 +3929,7 @@ static ssize_t aw8697_vbat_monitor_show(struct device *dev,
 	mutex_lock(&aw8697->lock);
 	aw8697_haptic_stop(aw8697);
 	aw8697_haptic_get_vbat(aw8697);
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "vbat=%dmV\n", aw8697->vbat);
+	len += sysfs_emit_at(buf, len, "vbat=%dmV\n", aw8697->vbat);
 	mutex_unlock(&aw8697->lock);
 
 	return len;
@@ -3999,8 +3976,7 @@ static ssize_t aw8697_lra_resistance_show(struct device *dev,
 	usleep_range(3000, 3500);
 	aw8697_i2c_read(aw8697, AW8697_REG_RLDET, &reg_val);
 	aw8697->lra = 298 * reg_val;
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "%d\n", aw8697->lra);
+	len += sysfs_emit_at(buf, len, "%d\n", aw8697->lra);
 	    /* snprintf(buf + len, PAGE_SIZE - len, "r_lra=%dmohm\n",
 	     * aw8697->lra);
 	     */
@@ -4037,8 +4013,7 @@ static ssize_t aw8697_auto_boost_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "auto_boost=%d\n",
+	len += sysfs_emit_at(buf, len, "auto_boost=%d\n",
 		     aw8697->auto_boost);
 
 	return len;
@@ -4075,8 +4050,7 @@ static ssize_t aw8697_prctmode_show(struct device *dev,
 
 	aw8697_i2c_read(aw8697, AW8697_REG_RLDET, &reg_val);
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "prctmode=%d\n",
+	len += sysfs_emit_at(buf, len, "prctmode=%d\n",
 		     reg_val & 0x20);
 	return len;
 }
@@ -4110,8 +4084,7 @@ static ssize_t aw8697_trig_show(struct device *dev,
 	unsigned char i = 0;
 
 	for (i = 0; i < AW8697_TRIG_NUM; i++) {
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"trig%d: enable=%d, default_level=%d, dual_edge=%d, frist_seq=%d, second_seq=%d\n",
+		len += sysfs_emit_at(buf, len, "trig%d: enable=%d, default_level=%d, dual_edge=%d, frist_seq=%d, second_seq=%d\n",
 				i + 1, aw8697->trig[i].enable,
 				aw8697->trig[i].default_level,
 				aw8697->trig[i].dual_edge,
@@ -4163,8 +4136,7 @@ static ssize_t aw8697_ram_vbat_comp_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "ram_vbat_comp=%d\n",
+	len += sysfs_emit_at(buf, len, "ram_vbat_comp=%d\n",
 		     aw8697->ram_vbat_comp);
 
 	return len;
@@ -4201,8 +4173,7 @@ static ssize_t aw8697_osc_cali_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "%d\n",
+	len += sysfs_emit_at(buf, len, "%d\n",
 		     aw8697->lra_calib_data);
 
 	return len;
@@ -4267,8 +4238,7 @@ static ssize_t aw8697_f0_save_show(struct device *dev,
 	struct aw8697 *aw8697 = awinic->aw8697;
 	ssize_t len = 0;
 
-	len +=
-	    snprintf(buf + len, PAGE_SIZE - len, "%d\n",
+	len += sysfs_emit_at(buf, len, "%d\n",
 		     aw8697->f0_calib_data);
 
 	return len;
@@ -4300,7 +4270,7 @@ static ssize_t aw8697_f0_value_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw8697 *aw8697 = awinic->aw8697;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", aw8697->f0);
+	return sysfs_emit(buf, "%d\n", aw8697->f0);
 }
 
 static ssize_t aw8697_f0_check_show(struct device *dev,
@@ -4312,9 +4282,9 @@ static ssize_t aw8697_f0_check_show(struct device *dev,
 	ssize_t len = 0;
 
 	if (aw8697->f0_cali_status == true)
-		len += snprintf(buf + len, PAGE_SIZE - len, "%d\n", 1);
+		len += sysfs_emit_at(buf, len, "%d\n", 1);
 	if (aw8697->f0_cali_status == false)
-		len += snprintf(buf + len, PAGE_SIZE - len, "%d\n", 0);
+		len += sysfs_emit_at(buf, len, "%d\n", 0);
 
 	return len;
 }
@@ -4324,7 +4294,7 @@ static ssize_t aw8697_effect_id_show(struct device *dev,
 	struct awinic *awinic = dev_get_drvdata(dev);
 	struct aw8697 *aw8697 = awinic->aw8697;
 
-	return snprintf(buf, PAGE_SIZE, "effect_id =%d\n", aw8697->effect_id);
+	return sysfs_emit(buf, "effect_id =%d\n", aw8697->effect_id);
 }
 
 static ssize_t aw8697_effect_id_store(struct device *dev,

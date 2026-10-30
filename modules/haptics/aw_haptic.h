@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/syscalls.h>
 #include <linux/input.h>
+#include <linux/gpio/consumer.h>
 /********************************************
  * print information control
  *******************************************/
@@ -164,8 +165,8 @@ struct awinic {
 	unsigned char name;
 	bool IsUsedIRQ;
 
-	int reset_gpio;
-	int irq_gpio;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *irq_gpio;
 	int reset_gpio_ret;
 	int irq_gpio_ret;
 	int enable_pin_control;

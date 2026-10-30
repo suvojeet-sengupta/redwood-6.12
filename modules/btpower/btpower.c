@@ -14,8 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
@@ -360,191 +359,158 @@ static int bt_clk_disable(struct bt_power_clk_data *clk)
 
 static void btpower_set_xo_clk_gpio_state(bool enable)
 {
-	int xo_clk_gpio =  bt_power_pdata->xo_gpio_clk;
-	int retry = 0;
-	int rc = 0;
+	struct gpio_desc *xo_clk_gpio = bt_power_pdata->xo_gpio_clk;
 
-	if (xo_clk_gpio < 0)
+	if (!xo_clk_gpio)
 		return;
-
-retry_gpio_req:
-	rc = gpio_request(xo_clk_gpio, "bt_xo_clk_gpio");
-	if (rc) {
-		if (retry++ < XO_CLK_RETRY_COUNT_MAX) {
-			/* wait for ~(10 - 20) ms */
-			usleep_range(10000, 20000);
-			goto retry_gpio_req;
-		}
-	}
-
-	if (rc) {
-		pr_err("%s: unable to request XO clk gpio %d (%d)\n",
-			__func__, xo_clk_gpio, rc);
-		return;
-	}
 
 	if (enable) {
-		gpio_direction_output(xo_clk_gpio, 1);
+		gpiod_direction_output(xo_clk_gpio, 1);
 		/*XO CLK must be asserted for some time before BT_EN */
 		usleep_range(100, 200);
 	} else {
 		/* Assert XO CLK ~(2-5)ms before off for valid latch in HW */
 		usleep_range(4000, 6000);
-		gpio_direction_output(xo_clk_gpio, 0);
+		gpiod_direction_output(xo_clk_gpio, 0);
 	}
 
-	pr_info("%s:gpio(%d) success\n", __func__, xo_clk_gpio);
-
-	gpio_free(xo_clk_gpio);
+	pr_info("%s:gpio(%d) success\n", __func__, desc_to_gpio(xo_clk_gpio));
 }
 
 static int bt_configure_gpios(int on)
 {
 	int rc = 0;
-	int bt_reset_gpio = bt_power_pdata->bt_gpio_sys_rst;
-	int wl_reset_gpio = bt_power_pdata->wl_gpio_sys_rst;
-	int bt_sw_ctrl_gpio  =  bt_power_pdata->bt_gpio_sw_ctrl;
-	int bt_debug_gpio  =  bt_power_pdata->bt_gpio_debug;
+	struct gpio_desc *bt_reset_gpio = bt_power_pdata->bt_gpio_sys_rst;
+	struct gpio_desc *wl_reset_gpio = bt_power_pdata->wl_gpio_sys_rst;
+	struct gpio_desc *bt_sw_ctrl_gpio = bt_power_pdata->bt_gpio_sw_ctrl;
+	struct gpio_desc *bt_debug_gpio = bt_power_pdata->bt_gpio_debug;
 	int assert_dbg_gpio = 0;
 
 	if (on) {
-		rc = gpio_request(bt_reset_gpio, "bt_sys_rst_n");
-		if (rc) {
-			pr_err("%s: unable to request gpio %d (%d)\n",
-					__func__, bt_reset_gpio, rc);
-			return rc;
-		}
-
 		pr_info("BTON:Turn Bt OFF asserting BT_EN to low\n");
-		pr_info("bt-reset-gpio(%d) value(%d)\n", bt_reset_gpio,
-			gpio_get_value(bt_reset_gpio));
-		rc = gpio_direction_output(bt_reset_gpio, 0);
+		pr_info("bt-reset-gpio(%d) value(%d)\n", desc_to_gpio(bt_reset_gpio),
+			gpiod_get_value(bt_reset_gpio));
+		rc = gpiod_direction_output(bt_reset_gpio, 0);
 		if (rc) {
 			pr_err("%s: Unable to set direction\n", __func__);
 			return rc;
 		}
 		bt_power_src_status[BT_RESET_GPIO] =
-			gpio_get_value(bt_reset_gpio);
+			gpiod_get_value(bt_reset_gpio);
 		msleep(50);
 		pr_info("BTON:Turn Bt OFF post asserting BT_EN to low\n");
-		pr_info("bt-reset-gpio(%d) value(%d)\n", bt_reset_gpio,
-			gpio_get_value(bt_reset_gpio));
+		pr_info("bt-reset-gpio(%d) value(%d)\n", desc_to_gpio(bt_reset_gpio),
+			gpiod_get_value(bt_reset_gpio));
 
-		if (bt_sw_ctrl_gpio >= 0) {
+		if (bt_sw_ctrl_gpio) {
 			bt_power_src_status[BT_SW_CTRL_GPIO] =
-			gpio_get_value(bt_sw_ctrl_gpio);
+			gpiod_get_value(bt_sw_ctrl_gpio);
 			pr_info("BTON:Turn Bt OFF bt-sw-ctrl-gpio(%d) value(%d)\n",
-				bt_sw_ctrl_gpio,
+				desc_to_gpio(bt_sw_ctrl_gpio),
 				bt_power_src_status[BT_SW_CTRL_GPIO]);
 		}
-		if (wl_reset_gpio >= 0)
+		if (wl_reset_gpio)
 			pr_info("BTON:Turn Bt ON wl-reset-gpio(%d) value(%d)\n",
-				wl_reset_gpio, gpio_get_value(wl_reset_gpio));
+				desc_to_gpio(wl_reset_gpio), gpiod_get_value(wl_reset_gpio));
 
-		if ((wl_reset_gpio < 0) ||
-			((wl_reset_gpio >= 0) && gpio_get_value(wl_reset_gpio))) {
+		if ((!wl_reset_gpio) ||
+			((wl_reset_gpio) && gpiod_get_value(wl_reset_gpio))) {
 
 			btpower_set_xo_clk_gpio_state(true);
 			pr_info("BTON: WLAN ON Asserting BT_EN to high\n");
-			rc = gpio_direction_output(bt_reset_gpio, 1);
+			rc = gpiod_direction_output(bt_reset_gpio, 1);
 			if (rc) {
 				pr_err("%s: Unable to set direction\n", __func__);
 				return rc;
 			}
 			bt_power_src_status[BT_RESET_GPIO] =
-				gpio_get_value(bt_reset_gpio);
+				gpiod_get_value(bt_reset_gpio);
 			btpower_set_xo_clk_gpio_state(false);
 		}
-		if ((wl_reset_gpio >= 0) && (gpio_get_value(wl_reset_gpio) == 0)) {
-			if (gpio_get_value(bt_reset_gpio)) {
+		if ((wl_reset_gpio) && (gpiod_get_value(wl_reset_gpio) == 0)) {
+			if (gpiod_get_value(bt_reset_gpio)) {
 				pr_info("BTON: WLAN OFF and BT ON are too close\n");
 				pr_info("reset BT_EN, enable it after delay\n");
-				rc = gpio_direction_output(bt_reset_gpio, 0);
+				rc = gpiod_direction_output(bt_reset_gpio, 0);
 				if (rc) {
 					pr_err("%s: Unable to set direction\n",
 						 __func__);
 					return rc;
 				}
 				bt_power_src_status[BT_RESET_GPIO] =
-					gpio_get_value(bt_reset_gpio);
+					gpiod_get_value(bt_reset_gpio);
 			}
 			pr_info("BTON: WLAN OFF waiting for 100ms delay\n");
 			pr_info("for AON output to fully discharge\n");
 			msleep(100);
 			pr_info("BTON: WLAN OFF Asserting BT_EN to high\n");
 			btpower_set_xo_clk_gpio_state(true);
-			rc = gpio_direction_output(bt_reset_gpio, 1);
+			rc = gpiod_direction_output(bt_reset_gpio, 1);
 			if (rc) {
 				pr_err("%s: Unable to set direction\n", __func__);
 				return rc;
 			}
 			bt_power_src_status[BT_RESET_GPIO] =
-				gpio_get_value(bt_reset_gpio);
+				gpiod_get_value(bt_reset_gpio);
 			btpower_set_xo_clk_gpio_state(false);
 		}
 		/* Below block of code executes if WL_EN is pulled high when
 		 * BT_EN is about to pull high. so above two if conditions are
 		 * not executed.
 		 */
-		if (!gpio_get_value(bt_reset_gpio)) {
+		if (!gpiod_get_value(bt_reset_gpio)) {
 			btpower_set_xo_clk_gpio_state(true);
 			pr_info("BTON: WLAN ON and BT ON are too close\n");
 			pr_info("Asserting BT_EN to high\n");
-			rc = gpio_direction_output(bt_reset_gpio, 1);
+			rc = gpiod_direction_output(bt_reset_gpio, 1);
 			if (rc) {
 				pr_err("%s: Unable to set direction\n", __func__);
 				return rc;
 			}
 			bt_power_src_status[BT_RESET_GPIO] =
-				gpio_get_value(bt_reset_gpio);
+				gpiod_get_value(bt_reset_gpio);
 			btpower_set_xo_clk_gpio_state(false);
 		}
 		msleep(50);
 		/*  Check  if  SW_CTRL  is  asserted  */
-		if  (bt_sw_ctrl_gpio  >=  0)  {
-			rc  =  gpio_direction_input(bt_sw_ctrl_gpio);
+		if  (bt_sw_ctrl_gpio)  {
+			rc  =  gpiod_direction_input(bt_sw_ctrl_gpio);
 			if  (rc)  {
 				pr_err("%s:SWCTRL Dir Set Problem:%d\n",
 					__func__, rc);
-			}  else  if  (!gpio_get_value(bt_sw_ctrl_gpio))  {
+			}  else  if  (!gpiod_get_value(bt_sw_ctrl_gpio))  {
 				/* SW_CTRL not asserted, assert debug GPIO */
-				if  (bt_debug_gpio  >=  0)
+				if  (bt_debug_gpio)
 					assert_dbg_gpio = 1;
 			}
 		}
 		if (assert_dbg_gpio) {
-			rc  =  gpio_request(bt_debug_gpio, "bt_debug_n");
-			if  (rc)  {
-				pr_err("unable to request Debug Gpio\n");
-			}  else  {
-				rc = gpio_direction_output(bt_debug_gpio,  1);
-				if (rc)
-					pr_err("%s:Prob Set Debug-Gpio\n",
-						__func__);
-			}
+			rc = gpiod_direction_output(bt_debug_gpio,  1);
+			if (rc)
+				pr_err("%s:Prob Set Debug-Gpio\n", __func__);
 		}
 		pr_info("BTON:Turn Bt On bt-reset-gpio(%d) value(%d)\n",
-			bt_reset_gpio, gpio_get_value(bt_reset_gpio));
-		if (bt_sw_ctrl_gpio >= 0) {
+			desc_to_gpio(bt_reset_gpio), gpiod_get_value(bt_reset_gpio));
+		if (bt_sw_ctrl_gpio) {
 			bt_power_src_status[BT_SW_CTRL_GPIO] =
-			gpio_get_value(bt_sw_ctrl_gpio);
+			gpiod_get_value(bt_sw_ctrl_gpio);
 			pr_info("BTON: Turn BT ON bt-sw-ctrl-gpio(%d) value(%d)\n",
-				bt_sw_ctrl_gpio,
+				desc_to_gpio(bt_sw_ctrl_gpio),
 				bt_power_src_status[BT_SW_CTRL_GPIO]);
 		}
 	} else {
-		gpio_set_value(bt_reset_gpio, 0);
+		gpiod_set_value(bt_reset_gpio, 0);
 		msleep(100);
 		pr_info("BT-OFF:bt-reset-gpio(%d) value(%d)\n",
-			bt_reset_gpio, gpio_get_value(bt_reset_gpio));
-		if (bt_sw_ctrl_gpio >= 0) {
+			desc_to_gpio(bt_reset_gpio), gpiod_get_value(bt_reset_gpio));
+		if (bt_sw_ctrl_gpio) {
 			pr_info("BT-OFF:bt-sw-ctrl-gpio(%d) value(%d)\n",
-				bt_sw_ctrl_gpio,
-				gpio_get_value(bt_sw_ctrl_gpio));
+				desc_to_gpio(bt_sw_ctrl_gpio),
+				gpiod_get_value(bt_sw_ctrl_gpio));
 		}
 	}
 
-	pr_info("%s: bt_gpio= %d on: %d\n", __func__, bt_reset_gpio, on);
+	pr_info("%s: bt_gpio= %d on: %d\n", __func__, desc_to_gpio(bt_reset_gpio), on);
 
 	return rc;
 }
@@ -573,7 +539,7 @@ static int bluetooth_power(int on)
 				goto clk_fail;
 			}
 		}
-		if (bt_power_pdata->bt_gpio_sys_rst > 0) {
+		if (bt_power_pdata->bt_gpio_sys_rst) {
 			bt_power_src_status[BT_RESET_GPIO] =
 				DEFAULT_INVALID_VALUE;
 			bt_power_src_status[BT_SW_CTRL_GPIO] =
@@ -587,13 +553,9 @@ static int bluetooth_power(int on)
 		}
 	} else if (on == 0) {
 		// Power Off
-		if (bt_power_pdata->bt_gpio_sys_rst > 0)
+		if (bt_power_pdata->bt_gpio_sys_rst)
 			bt_configure_gpios(on);
 gpio_fail:
-		if (bt_power_pdata->bt_gpio_sys_rst > 0)
-			gpio_free(bt_power_pdata->bt_gpio_sys_rst);
-		if (bt_power_pdata->bt_gpio_debug  >  0)
-			gpio_free(bt_power_pdata->bt_gpio_debug);
 		if (bt_power_pdata->bt_chip_clk)
 			bt_clk_disable(bt_power_pdata->bt_chip_clk);
 clk_fail:
@@ -631,7 +593,7 @@ static const struct rfkill_ops btpower_rfkill_ops = {
 static ssize_t extldo_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	return scnprintf(buf, 6, "false\n");
+	return sysfs_emit(buf, "false\n");
 }
 
 static DEVICE_ATTR_RO(extldo);
@@ -875,36 +837,56 @@ static int bt_power_populate_dt_pinfo(struct platform_device *pdev)
 		if (rc)
 			return rc;
 
-		bt_power_pdata->bt_gpio_sys_rst =
-			of_get_named_gpio(pdev->dev.of_node,
-						"qcom,bt-reset-gpio", 0);
-		if (bt_power_pdata->bt_gpio_sys_rst < 0)
+		bt_power_pdata->bt_gpio_sys_rst = devm_gpiod_get_optional(&pdev->dev,
+						"qcom,bt-reset", GPIOD_ASIS);
+		if (IS_ERR(bt_power_pdata->bt_gpio_sys_rst)) {
+			if (PTR_ERR(bt_power_pdata->bt_gpio_sys_rst) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			bt_power_pdata->bt_gpio_sys_rst = NULL;
+		}
+		if (!bt_power_pdata->bt_gpio_sys_rst)
 			pr_warn("bt-reset-gpio not provided in devicetree\n");
 
-		bt_power_pdata->wl_gpio_sys_rst =
-			of_get_named_gpio(pdev->dev.of_node,
-						"qcom,wl-reset-gpio", 0);
-		if (bt_power_pdata->wl_gpio_sys_rst < 0)
+		bt_power_pdata->wl_gpio_sys_rst = devm_gpiod_get_optional(&pdev->dev,
+						"qcom,wl-reset", GPIOD_ASIS | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+		if (IS_ERR(bt_power_pdata->wl_gpio_sys_rst)) {
+			if (PTR_ERR(bt_power_pdata->wl_gpio_sys_rst) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			bt_power_pdata->wl_gpio_sys_rst = NULL;
+		}
+		if (!bt_power_pdata->wl_gpio_sys_rst)
 			pr_err("%s: wl-reset-gpio not provided in device tree\n",
 				__func__);
 
 
-		bt_power_pdata->bt_gpio_sw_ctrl  =
-			of_get_named_gpio(pdev->dev.of_node,
-						"qcom,bt-sw-ctrl-gpio",  0);
-		if (bt_power_pdata->bt_gpio_sw_ctrl < 0)
+		bt_power_pdata->bt_gpio_sw_ctrl = devm_gpiod_get_optional(&pdev->dev,
+						"qcom,bt-sw-ctrl", GPIOD_ASIS);
+		if (IS_ERR(bt_power_pdata->bt_gpio_sw_ctrl)) {
+			if (PTR_ERR(bt_power_pdata->bt_gpio_sw_ctrl) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			bt_power_pdata->bt_gpio_sw_ctrl = NULL;
+		}
+		if (!bt_power_pdata->bt_gpio_sw_ctrl)
 			pr_warn("bt-sw-ctrl-gpio not provided in devicetree\n");
 
-		bt_power_pdata->bt_gpio_debug  =
-			of_get_named_gpio(pdev->dev.of_node,
-						"qcom,bt-debug-gpio",  0);
-		if (bt_power_pdata->bt_gpio_debug < 0)
+		bt_power_pdata->bt_gpio_debug = devm_gpiod_get_optional(&pdev->dev,
+						"qcom,bt-debug", GPIOD_ASIS);
+		if (IS_ERR(bt_power_pdata->bt_gpio_debug)) {
+			if (PTR_ERR(bt_power_pdata->bt_gpio_debug) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			bt_power_pdata->bt_gpio_debug = NULL;
+		}
+		if (!bt_power_pdata->bt_gpio_debug)
 			pr_warn("bt-debug-gpio not provided in devicetree\n");
 
-		bt_power_pdata->xo_gpio_clk =
-			of_get_named_gpio(pdev->dev.of_node,
-						"qcom,xo-clk-gpio", 0);
-		if (bt_power_pdata->xo_gpio_clk < 0)
+		bt_power_pdata->xo_gpio_clk = devm_gpiod_get_optional(&pdev->dev,
+						"qcom,xo-clk", GPIOD_ASIS);
+		if (IS_ERR(bt_power_pdata->xo_gpio_clk)) {
+			if (PTR_ERR(bt_power_pdata->xo_gpio_clk) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			bt_power_pdata->xo_gpio_clk = NULL;
+		}
+		if (!bt_power_pdata->xo_gpio_clk)
 			pr_warn("xo-clk-gpio not provided in devicetree\n");
 
 		rc = bt_dt_parse_clk_info(&pdev->dev,
@@ -1029,15 +1011,15 @@ static void  set_pwr_srcs_status(struct bt_power_vreg_data *handle)
 }
 
 static void  set_gpios_srcs_status(char *gpio_name,
-		int gpio_index, int handle)
+		int gpio_index, struct gpio_desc *handle)
 {
-	if (handle >= 0) {
+	if (handle) {
 		bt_power_src_status[gpio_index] =
 			DEFAULT_INVALID_VALUE;
 		bt_power_src_status[gpio_index] =
-			gpio_get_value(handle);
+			gpiod_get_value(handle);
 		pr_err("%s(%d) value(%d)\n", gpio_name,
-			handle, bt_power_src_status[gpio_index]);
+			desc_to_gpio(handle), bt_power_src_status[gpio_index]);
 	} else {
 		pr_err("%s: %s not configured\n",
 			__func__, gpio_name);
@@ -1105,10 +1087,10 @@ static long bt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case BT_CMD_CHECK_SW_CTRL:
 		/*  Check  if  SW_CTRL  is  asserted  */
 		pr_info("BT_CMD_CHECK_SW_CTRL\n");
-		if (bt_power_pdata->bt_gpio_sw_ctrl > 0) {
+		if (bt_power_pdata->bt_gpio_sw_ctrl) {
 			bt_power_src_status[BT_SW_CTRL_GPIO] =
 				DEFAULT_INVALID_VALUE;
-			ret  =  gpio_direction_input(
+			ret  =  gpiod_direction_input(
 				bt_power_pdata->bt_gpio_sw_ctrl);
 			if (ret) {
 				pr_err("%s:gpio_direction_input api\n",
@@ -1117,10 +1099,10 @@ static long bt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					__func__, ret);
 			} else {
 				bt_power_src_status[BT_SW_CTRL_GPIO] =
-					gpio_get_value(
+					gpiod_get_value(
 					bt_power_pdata->bt_gpio_sw_ctrl);
 				pr_info("bt-sw-ctrl-gpio(%d) value(%d)\n",
-					bt_power_pdata->bt_gpio_sw_ctrl,
+					desc_to_gpio(bt_power_pdata->bt_gpio_sw_ctrl),
 					bt_power_src_status[BT_SW_CTRL_GPIO]);
 			}
 		} else {
