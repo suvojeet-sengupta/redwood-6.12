@@ -1,9 +1,0 @@
-# FocalTech FT3680, the touch controller of redwood's other panel, from
-# genie1997/android_kernel_xiaomi_redwood (techpack/touch/focaltech_3680),
-# ported to 6.12. build-focaltech.sh copies in xiaomi_touch.h and the
-# panel_event_notifier.h it builds against. Without the host test files,
-# as the 5.4 build had them (CONFIG_TOUCHSCREEN_FOCALTECH_TEST=n).
-obj-m += focaltech_touch.o
-focaltech_touch-objs := focaltech_core.o focaltech_ex_fun.o focaltech_ex_mode.o \
-	focaltech_gesture.o focaltech_esdcheck.o focaltech_point_report_check.o \
-	focaltech_flash.o focaltech_spi.o
