@@ -1,6 +1,6 @@
 #!/bin/bash
 # New kernel images for a phone already running the 6.12 ROM: take that ROM's
-# own boot and vendor_boot, swap in the current kernel and every module (the
+# own boot and vendor_boot, swap in the current kernel, base dtb and every module (the
 # signed GKI ones must come from the same kernel build), and keep its
 # ramdisks, fstab and command line as they are.
 # Usage: pack-rom612.sh <ROM boot.img> <ROM vendor_boot.img>
@@ -48,6 +48,8 @@ eval "set -- $VARGS"
 args=(); while [ $# -gt 0 ]; do
 	case "$1" in
 	--vendor_ramdisk) args+=("$1" "$R/vendor_ramdisk.lz4"); shift 2 ;;
+	# the base dtb belongs to the kernel build (its /chosen/bootargs too)
+	--dtb) args+=("$1" "$D/yupik.dtb"); shift 2 ;;
 	--vendor_boot) shift 2 ;;
 	*) args+=("$1"); shift ;;
 	esac
