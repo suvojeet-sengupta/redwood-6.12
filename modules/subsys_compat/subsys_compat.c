@@ -176,7 +176,16 @@ static void subsys_boot_work(struct work_struct *work)
 		struct subsys *s = &subsystems[i];
 		struct rproc *rproc;
 
-		if (!s->autoboot || s->booted)
+		/*
+		 * Look up the ones nothing boots through here too (the WPSS is
+		 * started by icnss2): finding the processor turns its recovery
+		 * on, and with it off a firmware crash panics the phone
+		 */
+		if (!s->autoboot) {
+			again |= !subsys_rproc(s) && ++s->tries <= 60;
+			continue;
+		}
+		if (s->booted)
 			continue;
 		rproc = subsys_rproc(s);
 		if (!rproc || ++s->tries > 60) {
