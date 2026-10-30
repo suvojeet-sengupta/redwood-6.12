@@ -15,8 +15,9 @@
 #define aw_err(format, ...) \
 			pr_err("[awinic_haptic]" format, ##__VA_ARGS__)
 
+/* every effect logs a dozen of these; keep them behind dynamic debug */
 #define aw_info(format, ...) \
-			pr_info("[awinic_haptic]" format, ##__VA_ARGS__)
+			pr_debug("[awinic_haptic]" format, ##__VA_ARGS__)
 
 #define aw_dbg(format, ...) \
 			pr_debug("[awinic_haptic]" format, ##__VA_ARGS__)
