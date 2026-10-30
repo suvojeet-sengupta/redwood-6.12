@@ -3,6 +3,7 @@
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/qcom_dma_heap.h>
 #include "vidc_612.h"
 #include "msm_vidc_common.h"
 #include "vidc_hfi_api.h"
@@ -2170,7 +2171,7 @@ static void handle_sys_error(enum hal_command_response cmd, void *data)
 	int rc = 0;
 	bool panic = false;
 
-	subsystem_crashed("venus");
+	d_vpr_e("venus crashed\n");
 	if (!response) {
 		d_vpr_e("Failed to get valid response for sys error\n");
 		return;
@@ -7907,13 +7908,13 @@ static int msm_comm_memory_regions_prepare(struct msm_vidc_inst *inst)
 
 	for (i = 0; i < res->prefetch_non_pix_buf_count; i++) {
 		inst->regions.region[i].size = res->prefetch_non_pix_buf_size;
-		inst->regions.region[i].vmid = ION_FLAG_CP_NON_PIXEL;
+		inst->regions.region[i].vmid = QCOM_DMA_HEAP_FLAG_CP_NON_PIXEL;
 	}
 
 	for (i = res->prefetch_non_pix_buf_count;
 		i < inst->regions.num_regions; i++) {
 		inst->regions.region[i].size = res->prefetch_pix_buf_size;
-		inst->regions.region[i].vmid = ION_FLAG_CP_PIXEL;
+		inst->regions.region[i].vmid = QCOM_DMA_HEAP_FLAG_CP_PIXEL;
 	}
 
 	return 0;

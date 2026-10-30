@@ -3,6 +3,8 @@
  * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/dma-heap.h>
+#include <linux/qcom_dma_heap.h>
 #include <linux/dma-buf.h>
 #include "vidc_612.h"
 #include "msm_vidc.h"
@@ -161,8 +163,8 @@ static int msm_dma_put_device_address(u32 flags,
  * 6.12's DMA-BUF heaps have no get_flags, so every buffer read as uncached
  * and non-secure: the CPU cache was never cleaned before the video core
  * read a bitstream the codec had just written, and decoded frames came out
- * as blocks of garbage. Give back the flags 5.4's ION reported, from the
- * heap ioncompat picked for them.
+ * as blocks of garbage. Work the qcom heap flags out from the heap the
+ * buffer came from.
  */
 static int vidc_dma_buf_flags(struct dma_buf *dbuf, unsigned long *flags)
 {
@@ -172,9 +174,9 @@ static int vidc_dma_buf_flags(struct dma_buf *dbuf, unsigned long *flags)
 		return rc;
 	if (!strcmp(dbuf->exp_name, "qcom,system") ||
 	    !strcmp(dbuf->exp_name, "system"))
-		*flags = ION_FLAG_CACHED;
+		*flags = QCOM_DMA_HEAP_FLAG_CACHED;
 	else if (!strncmp(dbuf->exp_name, "qcom,secure-", 12))
-		*flags = ION_FLAG_SECURE;
+		*flags = QCOM_DMA_HEAP_FLAG_SECURE;
 	return 0;
 }
 
@@ -211,7 +213,7 @@ int msm_smem_map_dma_buf(struct msm_vidc_inst *inst, struct msm_smem *smem)
 	unsigned long buffer_size = 0;
 	unsigned long align = SZ_4K;
 	struct dma_buf *dbuf;
-	unsigned long ion_flags = 0;
+	unsigned long heap_flags = 0;
 	u32 b_type = HAL_BUFFER_INPUT | HAL_BUFFER_OUTPUT | HAL_BUFFER_OUTPUT2;
 
 	if (!inst || !smem) {
@@ -234,15 +236,15 @@ int msm_smem_map_dma_buf(struct msm_vidc_inst *inst, struct msm_smem *smem)
 
 	smem->dma_buf = dbuf;
 
-	rc = vidc_dma_buf_flags(dbuf, &ion_flags);
+	rc = vidc_dma_buf_flags(dbuf, &heap_flags);
 	if (rc) {
 		s_vpr_e(inst->sid, "Failed to get dma buf flags: %d\n", rc);
 		goto fail_map_dma_buf;
 	}
-	if (ion_flags & ION_FLAG_CACHED)
+	if (heap_flags & QCOM_DMA_HEAP_FLAG_CACHED)
 		smem->flags |= SMEM_CACHED;
 
-	if (ion_flags & ION_FLAG_SECURE)
+	if (heap_flags & QCOM_DMA_HEAP_FLAG_SECURE)
 		smem->flags |= SMEM_SECURE;
 
 	if ((smem->buffer_type & b_type) &&
@@ -322,38 +324,32 @@ exit:
 	return rc;
 }
 
-static int get_secure_flag_for_buffer_type(
+/*
+ * The secure heap a buffer type comes from: pixel buffers from the pixel
+ * heap, bitstream and everything else from the non-pixel one.
+ */
+static const char *secure_heap_for_buffer_type(
 	u32 session_type, enum hal_buffer buffer_type)
 {
 	switch (buffer_type) {
 	case HAL_BUFFER_INPUT:
-		if (session_type == MSM_VIDC_ENCODER)
-			return ION_FLAG_CP_PIXEL;
-		else
-			return ION_FLAG_CP_BITSTREAM;
+		return session_type == MSM_VIDC_ENCODER ?
+			"qcom,secure-pixel" : "qcom,secure-non-pixel";
 	case HAL_BUFFER_OUTPUT:
 	case HAL_BUFFER_OUTPUT2:
-		if (session_type == MSM_VIDC_ENCODER)
-			return ION_FLAG_CP_BITSTREAM;
-		else
-			return ION_FLAG_CP_PIXEL;
-	case HAL_BUFFER_INTERNAL_SCRATCH:
-		return ION_FLAG_CP_BITSTREAM;
-	case HAL_BUFFER_INTERNAL_SCRATCH_1:
-		return ION_FLAG_CP_NON_PIXEL;
+		return session_type == MSM_VIDC_ENCODER ?
+			"qcom,secure-non-pixel" : "qcom,secure-pixel";
 	case HAL_BUFFER_INTERNAL_SCRATCH_2:
-		return ION_FLAG_CP_PIXEL;
+		return "qcom,secure-pixel";
+	case HAL_BUFFER_INTERNAL_SCRATCH:
+	case HAL_BUFFER_INTERNAL_SCRATCH_1:
 	case HAL_BUFFER_INTERNAL_PERSIST:
-		if (session_type == MSM_VIDC_ENCODER)
-			return ION_FLAG_CP_NON_PIXEL;
-		else
-			return ION_FLAG_CP_BITSTREAM;
 	case HAL_BUFFER_INTERNAL_PERSIST_1:
-		return ION_FLAG_CP_NON_PIXEL;
+		return "qcom,secure-non-pixel";
 	default:
-		WARN(1, "No matching secure flag for buffer type : %x\n",
+		WARN(1, "No matching secure heap for buffer type : %x\n",
 				buffer_type);
-		return -EINVAL;
+		return NULL;
 	}
 }
 
@@ -364,9 +360,9 @@ static int alloc_dma_mem(size_t size, u32 align, u32 flags,
 {
 	dma_addr_t iova = 0;
 	unsigned long buffer_size = 0;
-	unsigned long heap_mask = 0;
+	const char *heap_name;
+	struct dma_heap *heap;
 	int rc = 0;
-	int ion_flags = 0;
 	struct dma_buf *dbuf = NULL;
 
 	if (!res) {
@@ -380,36 +376,29 @@ static int alloc_dma_mem(size_t size, u32 align, u32 flags,
 	if (is_iommu_present(res)) {
 		if (flags & SMEM_ADSP) {
 			s_vpr_h(sid, "Allocating from ADSP heap\n");
-			heap_mask = ION_HEAP(ION_ADSP_HEAP_ID);
+			heap_name = "qcom,adsp";
 		} else {
-			heap_mask = ION_HEAP(ION_SYSTEM_HEAP_ID);
+			heap_name = flags & SMEM_CACHED ?
+				"qcom,system" : "qcom,system-uncached";
 		}
 	} else {
 		s_vpr_h(sid,
 			"allocate shared memory from adsp heap size %zx align %d\n",
 			size, align);
-		heap_mask = ION_HEAP(ION_ADSP_HEAP_ID);
+		heap_name = "qcom,adsp";
 	}
-
-	if (flags & SMEM_CACHED)
-		ion_flags |= ION_FLAG_CACHED;
 
 	if ((flags & SMEM_SECURE) ||
 		(buffer_type == HAL_BUFFER_INTERNAL_PERSIST &&
 		 session_type == MSM_VIDC_ENCODER)) {
-		int secure_flag =
-			get_secure_flag_for_buffer_type(
-				session_type, buffer_type);
-		if (secure_flag < 0) {
-			rc = secure_flag;
+		heap_name = secure_heap_for_buffer_type(session_type,
+							buffer_type);
+		if (!heap_name) {
+			rc = -EINVAL;
 			goto fail_shared_mem_alloc;
 		}
 
-		ion_flags |= ION_FLAG_SECURE | secure_flag;
-		heap_mask = ION_HEAP(ION_SECURE_HEAP_ID);
-
 		if (res->slave_side_cp) {
-			heap_mask = ION_HEAP(ION_CP_MM_HEAP_ID);
 			size = ALIGN(size, SZ_1M);
 			align = ALIGN(size, SZ_1M);
 		}
@@ -417,16 +406,23 @@ static int alloc_dma_mem(size_t size, u32 align, u32 flags,
 	}
 
 	trace_msm_smem_buffer_dma_op_start("ALLOC", (u32)buffer_type,
-		heap_mask, size, align, flags, map_kernel);
-	dbuf = ion_alloc(size, heap_mask, ion_flags);
+		0, size, align, flags, map_kernel);
+	heap = dma_heap_find(heap_name);
+	if (!heap) {
+		s_vpr_e(sid, "No %s heap\n", heap_name);
+		rc = -ENODEV;
+		goto fail_shared_mem_alloc;
+	}
+	dbuf = dma_heap_buffer_alloc(heap, size, O_RDWR, 0);
+	dma_heap_put(heap);
 	if (IS_ERR_OR_NULL(dbuf)) {
-		s_vpr_e(sid, "Failed to allocate shared memory = %zx, %#x\n",
-		size, flags);
+		s_vpr_e(sid, "Failed to allocate shared memory = %zx from %s, %#x\n",
+		size, heap_name, flags);
 		rc = -ENOMEM;
 		goto fail_shared_mem_alloc;
 	}
 	trace_msm_smem_buffer_dma_op_end("ALLOC", (u32)buffer_type,
-		heap_mask, size, align, flags, map_kernel);
+		0, size, align, flags, map_kernel);
 
 	mem->flags = flags;
 	mem->buffer_type = buffer_type;
@@ -566,7 +562,7 @@ int msm_smem_cache_operations(struct dma_buf *dbuf,
 		s_vpr_e(sid, "%s: dma_buf_get_flags failed, err %d\n",
 			__func__, rc);
 		return rc;
-	} else if (!(flags & ION_FLAG_CACHED)) {
+	} else if (!(flags & QCOM_DMA_HEAP_FLAG_CACHED)) {
 		return rc;
 	}
 
@@ -637,73 +633,30 @@ struct context_bank_info *msm_smem_get_context_bank(u32 session_type,
 	return match;
 }
 
+/*
+ * Secure buffer prefetch came with 5.4's ION; 6.12's secure DMA-BUF heaps
+ * allocate on demand and have nothing to prefetch.
+ */
 int msm_smem_memory_prefetch(struct msm_vidc_inst *inst)
 {
-	int i, rc = 0;
-	struct memory_regions *vidc_regions = NULL;
-	struct ion_prefetch_region ion_region[MEMORY_REGIONS_MAX];
-
 	if (!inst) {
 		d_vpr_e("%s: invalid parameters\n", __func__);
 		return -EINVAL;
 	}
 
-	vidc_regions = &inst->regions;
-	if (vidc_regions->num_regions > MEMORY_REGIONS_MAX) {
-		s_vpr_e(inst->sid, "%s: invalid num_regions %d, max %d\n",
-			__func__, vidc_regions->num_regions,
-			MEMORY_REGIONS_MAX);
-		return -EINVAL;
-	}
-
-	memset(ion_region, 0, sizeof(ion_region));
-	for (i = 0; i < vidc_regions->num_regions; i++) {
-		ion_region[i].size = vidc_regions->region[i].size;
-		ion_region[i].vmid = vidc_regions->region[i].vmid;
-	}
-
-	rc = msm_ion_heap_prefetch(ION_SECURE_HEAP_ID, ion_region,
-		vidc_regions->num_regions);
-	if (rc)
-		s_vpr_e(inst->sid, "%s: prefetch failed, ret: %d\n",
-			__func__, rc);
-	else
-		s_vpr_l(inst->sid, "%s: prefetch succeeded\n", __func__);
-
-	return rc;
+	return 0;
 }
 
+/*
+ * Secure buffer drain came with 5.4's ION; 6.12's secure DMA-BUF heaps
+ * allocate on demand and have nothing to drain.
+ */
 int msm_smem_memory_drain(struct msm_vidc_inst *inst)
 {
-	int i, rc = 0;
-	struct memory_regions *vidc_regions = NULL;
-	struct ion_prefetch_region ion_region[MEMORY_REGIONS_MAX];
-
 	if (!inst) {
 		d_vpr_e("%s: invalid parameters\n", __func__);
 		return -EINVAL;
 	}
 
-	vidc_regions = &inst->regions;
-	if (vidc_regions->num_regions > MEMORY_REGIONS_MAX) {
-		s_vpr_e(inst->sid, "%s: invalid num_regions %d, max %d\n",
-			__func__, vidc_regions->num_regions,
-			MEMORY_REGIONS_MAX);
-		return -EINVAL;
-	}
-
-	memset(ion_region, 0, sizeof(ion_region));
-	for (i = 0; i < vidc_regions->num_regions; i++) {
-		ion_region[i].size = vidc_regions->region[i].size;
-		ion_region[i].vmid = vidc_regions->region[i].vmid;
-	}
-
-	rc = msm_ion_heap_drain(ION_SECURE_HEAP_ID, ion_region,
-		vidc_regions->num_regions);
-	if (rc)
-		s_vpr_e(inst->sid, "%s: drain failed, ret: %d\n", __func__, rc);
-	else
-		s_vpr_l(inst->sid, "%s: drain succeeded\n", __func__);
-
-	return rc;
+	return 0;
 }
