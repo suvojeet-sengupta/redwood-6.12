@@ -746,7 +746,7 @@ static int msm_vidc_pm_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops msm_vidc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(msm_vidc_pm_suspend, msm_vidc_pm_resume)
+	SYSTEM_SLEEP_PM_OPS(msm_vidc_pm_suspend, msm_vidc_pm_resume)
 };
 
 MODULE_DEVICE_TABLE(of, msm_vidc_dt_match);
@@ -757,7 +757,7 @@ static struct platform_driver msm_vidc_driver = {
 	.driver = {
 		.name = "msm_vidc_v4l2",
 		.of_match_table = msm_vidc_dt_match,
-		.pm = &msm_vidc_pm_ops,
+		.pm = pm_sleep_ptr(&msm_vidc_pm_ops),
 	},
 };
 
