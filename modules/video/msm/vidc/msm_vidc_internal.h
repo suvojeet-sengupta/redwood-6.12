@@ -51,6 +51,7 @@
 #define V4L2_EVENT_VIDC_BASE  10
 #define INPUT_MPLANE V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE
 #define OUTPUT_MPLANE V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
+#define MSM_VIDC_PLANE_WORDS (sizeof_field(struct v4l2_plane, reserved) / sizeof(__u32))
 
 #define RATE_CONTROL_OFF (V4L2_MPEG_VIDEO_BITRATE_MODE_MSM_CQ + 1)
 #define RATE_CONTROL_LOSSLESS (V4L2_MPEG_VIDEO_BITRATE_MODE_MSM_CQ + 2)
@@ -594,6 +595,8 @@ struct msm_vidc_inst {
 	bool boost_qp_enabled;
 	u32 boost_min_qp;
 	u32 boost_max_qp;
+	/* plane reserved words of a 32-bit caller, per queue, buffer and plane */
+	u32 (*compat_reserved)[VB2_MAX_FRAME][VIDEO_MAX_PLANES][MSM_VIDC_PLANE_WORDS];
 };
 
 extern struct msm_vidc_drv *vidc_driver;

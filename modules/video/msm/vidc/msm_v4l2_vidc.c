@@ -3,6 +3,7 @@
  * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/fs.h>
@@ -30,6 +31,204 @@ static inline struct msm_vidc_inst *get_vidc_inst(struct file *filp, void *fh)
 					struct msm_vidc_inst, event_handler);
 }
 
+#ifdef CONFIG_COMPAT
+/* The 32-bit buffer layouts of v4l2-compat-ioctl32.c, whose plane conversion drops reserved[] */
+struct msm_v4l2_plane32 {
+	__u32 bytesused;
+	__u32 length;
+	union {
+		__u32 mem_offset;
+		compat_long_t userptr;
+		__s32 fd;
+	} m;
+	__u32 data_offset;
+	__u32 reserved[11];
+};
+
+struct msm_v4l2_buffer32 {
+	__u32 index;
+	__u32 type;
+	__u32 bytesused;
+	__u32 flags;
+	__u32 field;
+	struct {
+		compat_s64 tv_sec;
+		compat_s64 tv_usec;
+	} timestamp;
+	struct v4l2_timecode timecode;
+	__u32 sequence;
+	__u32 memory;
+	union {
+		__u32 offset;
+		compat_long_t userptr;
+		compat_caddr_t planes;
+		__s32 fd;
+	} m;
+	__u32 length;
+	__u32 reserved2;
+	__s32 request_fd;
+};
+
+struct msm_v4l2_buffer32_time32 {
+	__u32 index;
+	__u32 type;
+	__u32 bytesused;
+	__u32 flags;
+	__u32 field;
+	struct old_timeval32 timestamp;
+	struct v4l2_timecode timecode;
+	__u32 sequence;
+	__u32 memory;
+	union {
+		__u32 offset;
+		compat_long_t userptr;
+		compat_caddr_t planes;
+		__s32 fd;
+	} m;
+	__u32 length;
+	__u32 reserved2;
+	__s32 request_fd;
+};
+
+#define MSM_VIDIOC_QBUF32		_IOWR('V', 15, struct msm_v4l2_buffer32)
+#define MSM_VIDIOC_DQBUF32		_IOWR('V', 17, struct msm_v4l2_buffer32)
+#define MSM_VIDIOC_QBUF32_TIME32	_IOWR('V', 15, struct msm_v4l2_buffer32_time32)
+#define MSM_VIDIOC_DQBUF32_TIME32	_IOWR('V', 17, struct msm_v4l2_buffer32_time32)
+
+static_assert(sizeof_field(struct msm_v4l2_plane32, reserved) ==
+	MSM_VIDC_PLANE_WORDS * sizeof(__u32));
+
+static u32 *msm_v4l2_compat_slot(struct msm_vidc_inst *inst, u32 type,
+		u32 index, u32 plane)
+{
+	u32 q;
+
+	if (!inst->compat_reserved || index >= VB2_MAX_FRAME ||
+			plane >= VIDEO_MAX_PLANES)
+		return NULL;
+	if (type == INPUT_MPLANE)
+		q = 0;
+	else if (type == OUTPUT_MPLANE)
+		q = 1;
+	else
+		return NULL;
+	return inst->compat_reserved[q][index][plane];
+}
+
+static int msm_v4l2_compat_buf(unsigned int cmd, void __user *arg, u32 *type,
+		u32 *index, u32 *length, struct msm_v4l2_plane32 __user **planes)
+{
+	compat_caddr_t p;
+
+	if (cmd == MSM_VIDIOC_QBUF32 || cmd == MSM_VIDIOC_DQBUF32) {
+		struct msm_v4l2_buffer32 __user *b = arg;
+
+		if (get_user(*index, &b->index) || get_user(*type, &b->type) ||
+				get_user(*length, &b->length) ||
+				get_user(p, &b->m.planes))
+			return -EFAULT;
+	} else {
+		struct msm_v4l2_buffer32_time32 __user *b = arg;
+
+		if (get_user(*index, &b->index) || get_user(*type, &b->type) ||
+				get_user(*length, &b->length) ||
+				get_user(p, &b->m.planes))
+			return -EFAULT;
+	}
+	*planes = compat_ptr(p);
+	return 0;
+}
+
+static int msm_v4l2_compat_words(struct msm_vidc_inst *inst,
+		unsigned int cmd, void __user *arg, bool to_user)
+{
+	struct msm_v4l2_plane32 __user *planes;
+	u32 type, index, length, i, *slot;
+	int rc;
+
+	rc = msm_v4l2_compat_buf(cmd, arg, &type, &index, &length, &planes);
+	if (rc || !V4L2_TYPE_IS_MULTIPLANAR(type))
+		return rc;
+	for (i = 0; i < length; i++) {
+		slot = msm_v4l2_compat_slot(inst, type, index, i);
+		if (!slot)
+			break;
+		if (to_user)
+			rc = copy_to_user(planes[i].reserved, slot,
+				sizeof(planes[i].reserved));
+		else
+			rc = copy_from_user(slot, planes[i].reserved,
+				sizeof(planes[i].reserved));
+		if (rc)
+			return -EFAULT;
+	}
+	return 0;
+}
+
+/* QBUF keeps the caller's words for msm_v4l2_qbuf, DQBUF hands back what msm_v4l2_dqbuf kept */
+static long msm_v4l2_compat_ioctl(struct file *filp, unsigned int cmd,
+		unsigned long arg)
+{
+	struct msm_vidc_inst *inst = get_vidc_inst(filp, NULL);
+	long rc;
+
+	if (!inst->compat_reserved)
+		return video_ioctl2(filp, cmd, arg);
+
+	switch (cmd) {
+	case MSM_VIDIOC_QBUF32:
+	case MSM_VIDIOC_QBUF32_TIME32:
+		rc = msm_v4l2_compat_words(inst, cmd, (void __user *)arg, false);
+		if (rc)
+			return rc;
+		return video_ioctl2(filp, cmd, arg);
+	case MSM_VIDIOC_DQBUF32:
+	case MSM_VIDIOC_DQBUF32_TIME32:
+		rc = video_ioctl2(filp, cmd, arg);
+		if (rc)
+			return rc;
+		return msm_v4l2_compat_words(inst, cmd, (void __user *)arg, true);
+	default:
+		return video_ioctl2(filp, cmd, arg);
+	}
+}
+
+static void msm_v4l2_compat_copy(struct msm_vidc_inst *inst,
+		struct v4l2_buffer *b, bool save)
+{
+	u32 i, *slot;
+
+	if (!in_compat_syscall() || !V4L2_TYPE_IS_MULTIPLANAR(b->type))
+		return;
+	for (i = 0; i < b->length; i++) {
+		slot = msm_v4l2_compat_slot(inst, b->type, b->index, i);
+		if (!slot)
+			return;
+		if (save)
+			memcpy(slot, b->m.planes[i].reserved,
+				sizeof(b->m.planes[i].reserved));
+		else
+			memcpy(b->m.planes[i].reserved, slot,
+				sizeof(b->m.planes[i].reserved));
+	}
+}
+#else
+static inline void msm_v4l2_compat_copy(struct msm_vidc_inst *inst,
+		struct v4l2_buffer *b, bool save)
+{
+}
+#endif
+
+static long msm_v4l2_ioctl(struct file *filp, unsigned int cmd,
+		unsigned long arg)
+{
+#ifdef CONFIG_COMPAT
+	if (in_compat_syscall())
+		return msm_v4l2_compat_ioctl(filp, cmd, arg);
+#endif
+	return video_ioctl2(filp, cmd, arg);
+}
+
 static int msm_v4l2_open(struct file *filp)
 {
 	struct video_device *vdev = video_devdata(filp);
@@ -45,6 +244,16 @@ static int msm_v4l2_open(struct file *filp)
 		core->id, vid_dev->type);
 		return -ENOMEM;
 	}
+#ifdef CONFIG_COMPAT
+	if (in_compat_syscall()) {
+		vidc_inst->compat_reserved = kvcalloc(2,
+			sizeof(*vidc_inst->compat_reserved), GFP_KERNEL);
+		if (!vidc_inst->compat_reserved) {
+			msm_vidc_close(vidc_inst);
+			return -ENOMEM;
+		}
+	}
+#endif
 	clear_bit(V4L2_FL_USES_V4L2_FH, &vdev->flags);
 	filp->private_data = &(vidc_inst->event_handler);
 	trace_msm_v4l2_vidc_open_end("msm v4l2_open end");
@@ -58,6 +267,8 @@ static int msm_v4l2_close(struct file *filp)
 
 	trace_msm_v4l2_vidc_close_start("msm v4l2_close start");
 	vidc_inst = get_vidc_inst(filp, NULL);
+	kvfree(vidc_inst->compat_reserved);
+	vidc_inst->compat_reserved = NULL;
 
 	rc = msm_vidc_close(vidc_inst);
 	filp->private_data = NULL;
@@ -125,13 +336,22 @@ int msm_v4l2_qbuf(struct file *file, void *fh,
 				struct v4l2_buffer *b)
 {
 	struct video_device *vdev = video_devdata(file);
-	return msm_vidc_qbuf(get_vidc_inst(file, fh), vdev->v4l2_dev->mdev, b);
+	struct msm_vidc_inst *vidc_inst = get_vidc_inst(file, fh);
+
+	msm_v4l2_compat_copy(vidc_inst, b, false);
+	return msm_vidc_qbuf(vidc_inst, vdev->v4l2_dev->mdev, b);
 }
 
 int msm_v4l2_dqbuf(struct file *file, void *fh,
 				struct v4l2_buffer *b)
 {
-	return msm_vidc_dqbuf(get_vidc_inst(file, fh), b);
+	struct msm_vidc_inst *vidc_inst = get_vidc_inst(file, fh);
+	int rc;
+
+	rc = msm_vidc_dqbuf(vidc_inst, b);
+	if (!rc)
+		msm_v4l2_compat_copy(vidc_inst, b, true);
+	return rc;
 }
 
 int msm_v4l2_streamon(struct file *file, void *fh,
@@ -246,7 +466,7 @@ static const struct v4l2_file_operations msm_v4l2_vidc_fops = {
 	.owner = THIS_MODULE,
 	.open = msm_v4l2_open,
 	.release = msm_v4l2_close,
-	.unlocked_ioctl = video_ioctl2,
+	.unlocked_ioctl = msm_v4l2_ioctl,
 	.poll = msm_v4l2_poll,
 };
 
