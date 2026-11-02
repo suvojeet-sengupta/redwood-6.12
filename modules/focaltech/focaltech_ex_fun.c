@@ -993,8 +993,10 @@ static ssize_t fts_driver_info_show(struct device *dev,
 
 	count += snprintf(buf + count, PAGE_SIZE,
 			  "reset gpio:%d,int gpio:%d,irq:%d,avdd gpio:%d\n",
-			  pdata->reset_gpio, pdata->irq_gpio, ts_data->irq,
-			  pdata->avdd_gpio);
+			  pdata->reset_gpio ? desc_to_gpio(pdata->reset_gpio) : -1,
+			  pdata->irq_gpio ? desc_to_gpio(pdata->irq_gpio) : -1,
+			  ts_data->irq,
+			  pdata->avdd_gpio ? desc_to_gpio(pdata->avdd_gpio) : -1);
 
 	count += snprintf(buf + count, PAGE_SIZE, "IC ID:0x%02x%02x\n",
 			  ts_data->ic_info.ids.chip_idh,

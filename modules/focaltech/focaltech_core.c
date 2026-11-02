@@ -170,9 +170,9 @@ void fts_tp_state_recovery(struct fts_ts_data *ts_data)
 int fts_reset_proc(int hdelayms)
 {
 	FTS_DEBUG("tp reset");
-	gpio_direction_output(fts_data->pdata->reset_gpio, 0);
+	gpiod_direction_output(fts_data->pdata->reset_gpio, 0);
 	msleep(1);
-	gpio_direction_output(fts_data->pdata->reset_gpio, 1);
+	gpiod_direction_output(fts_data->pdata->reset_gpio, 1);
 	if (hdelayms)
 		msleep(hdelayms);
 
@@ -1323,7 +1323,7 @@ static int fts_irq_registration(struct fts_ts_data *ts_data)
 	int ret = 0;
 	struct fts_ts_platform_data *pdata = ts_data->pdata;
 
-	ts_data->irq = gpio_to_irq(pdata->irq_gpio);
+	ts_data->irq = gpiod_to_irq(pdata->irq_gpio);
 	pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
 	FTS_INFO("irq:%d, flag:%x", ts_data->irq, pdata->irq_gpio_flags);
 	ret = request_threaded_irq(ts_data->irq, NULL, fts_irq_handler,
@@ -1622,7 +1622,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 	if (enable) {
 		if (ts_data->power_disabled) {
 			FTS_DEBUG("regulator enable !");
-			gpio_direction_output(ts_data->pdata->reset_gpio, 1);
+			gpiod_direction_output(ts_data->pdata->reset_gpio, 1);
 			msleep(1);
 #if FTS_PINCTRL_EN
 			if (ts_data->pinctrl && ts_data->pinctrl_dvdd_enable) {
@@ -1650,7 +1650,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 			} else
 				FTS_ERROR("failed to get iovdd regulator\n");
 			msleep(3);
-			gpio_direction_output(ts_data->pdata->avdd_gpio, 1);
+			gpiod_direction_output(ts_data->pdata->avdd_gpio, 1);
 			msleep(3);
 			ret = regulator_enable(ts_data->avdd);
 			if (ret)
@@ -1663,9 +1663,9 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 	} else {
 		if (!ts_data->power_disabled) {
 			FTS_DEBUG("regulator disable !");
-			gpio_direction_output(ts_data->pdata->reset_gpio, 0);
+			gpiod_direction_output(ts_data->pdata->reset_gpio, 0);
 			msleep(3);
-			gpio_direction_output(ts_data->pdata->avdd_gpio, 0);
+			gpiod_direction_output(ts_data->pdata->avdd_gpio, 0);
 			msleep(3);
 			ret = regulator_disable(ts_data->avdd);
 			if (ret)
@@ -1792,48 +1792,13 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 	int ret = 0;
 
 	FTS_FUNC_ENTER();
-	/* request irq gpio */
-	if (gpio_is_valid(data->pdata->irq_gpio)) {
-		ret = gpio_request(data->pdata->irq_gpio, "fts_irq_gpio");
-		if (ret) {
-			FTS_ERROR("[GPIO]irq gpio request failed");
-			goto err_irq_gpio_req;
-		}
-
-		ret = gpio_direction_input(data->pdata->irq_gpio);
-		if (ret) {
+	/* The lines are requested in fts_parse_dt(); the IRQ line is an input */
+	if (data->pdata->irq_gpio) {
+		ret = gpiod_direction_input(data->pdata->irq_gpio);
+		if (ret)
 			FTS_ERROR("[GPIO]set_direction for irq gpio failed");
-			goto err_irq_gpio_dir;
-		}
 	}
 
-	/* request reset gpio */
-	if (gpio_is_valid(data->pdata->reset_gpio)) {
-		ret = gpio_request(data->pdata->reset_gpio, "fts_reset_gpio");
-		if (ret) {
-			FTS_ERROR("[GPIO]reset gpio request failed");
-			goto err_irq_gpio_dir;
-		}
-	}
-
-	if (gpio_is_valid(data->pdata->avdd_gpio)) {
-		ret = gpio_request(data->pdata->avdd_gpio, "fts_avdd_gpio");
-		if (ret) {
-			FTS_ERROR("[GPIO]avdd gpio request failed");
-			goto err_reset_gpio_dir;
-		}
-	}
-
-	FTS_FUNC_EXIT();
-	return 0;
-
-err_reset_gpio_dir:
-	if (gpio_is_valid(data->pdata->reset_gpio))
-		gpio_free(data->pdata->reset_gpio);
-err_irq_gpio_dir:
-	if (gpio_is_valid(data->pdata->irq_gpio))
-		gpio_free(data->pdata->irq_gpio);
-err_irq_gpio_req:
 	FTS_FUNC_EXIT();
 	return ret;
 }
@@ -1927,16 +1892,20 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 	}
 
 	/* reset, irq gpio info */
-	pdata->avdd_gpio = of_get_named_gpio(np, "focaltech,avdd-gpio", 0);
-	if (pdata->avdd_gpio < 0)
-		FTS_ERROR("Unable to get avdd_gpio");
+	pdata->avdd_gpio = devm_gpiod_get_optional(dev, "focaltech,avdd", GPIOD_ASIS);
+	if (IS_ERR(pdata->avdd_gpio))
+		return dev_err_probe(dev, PTR_ERR(pdata->avdd_gpio), "Unable to get avdd_gpio\n");
 
-	pdata->reset_gpio = of_get_named_gpio(np, "focaltech,reset-gpio", 0);
-	if (pdata->reset_gpio < 0)
+	pdata->reset_gpio = devm_gpiod_get_optional(dev, "focaltech,reset", GPIOD_ASIS);
+	if (IS_ERR(pdata->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(pdata->reset_gpio), "Unable to get reset_gpio\n");
+	if (!pdata->reset_gpio)
 		FTS_ERROR("Unable to get reset_gpio");
 
-	pdata->irq_gpio = of_get_named_gpio(np, "focaltech,irq-gpio", 0);
-	if (pdata->irq_gpio < 0)
+	pdata->irq_gpio = devm_gpiod_get_optional(dev, "focaltech,irq", GPIOD_ASIS);
+	if (IS_ERR(pdata->irq_gpio))
+		return dev_err_probe(dev, PTR_ERR(pdata->irq_gpio), "Unable to get irq_gpio\n");
+	if (!pdata->irq_gpio)
 		FTS_ERROR("Unable to get irq_gpio");
 
 	ret = of_property_read_u32(np, "focaltech,super-resolution-factors",
@@ -1962,8 +1931,10 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 	}
 
 	FTS_INFO("max touch number:%d, irq gpio:%d, reset gpio:%d, avdd gpio:%d\n",
-		 pdata->max_touch_number, pdata->irq_gpio, pdata->reset_gpio,
-		 pdata->avdd_gpio);
+		 pdata->max_touch_number,
+		 pdata->irq_gpio ? desc_to_gpio(pdata->irq_gpio) : -1,
+		 pdata->reset_gpio ? desc_to_gpio(pdata->reset_gpio) : -1,
+		 pdata->avdd_gpio ? desc_to_gpio(pdata->avdd_gpio) : -1);
 
 #ifdef FTS_XIAOMI_TOUCHFEATURE
 	ret = of_property_read_u32_array(np, "focaltech,touch-def-array",
@@ -2986,12 +2957,6 @@ err_irq_req:
 err_power_init:
 	fts_power_source_exit(ts_data);
 #endif
-	if (gpio_is_valid(ts_data->pdata->avdd_gpio))
-		gpio_free(ts_data->pdata->avdd_gpio);
-	if (gpio_is_valid(ts_data->pdata->reset_gpio))
-		gpio_free(ts_data->pdata->reset_gpio);
-	if (gpio_is_valid(ts_data->pdata->irq_gpio))
-		gpio_free(ts_data->pdata->irq_gpio);
 err_gpio_config:
 	kfree_safe(ts_data->touch_buf);
 err_buffer_init:
@@ -3052,14 +3017,6 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 		panel_event_notifier_unregister(ts_data->notifier_cookie);
 #endif
 
-	if (gpio_is_valid(ts_data->pdata->avdd_gpio))
-		gpio_free(ts_data->pdata->avdd_gpio);
-
-	if (gpio_is_valid(ts_data->pdata->reset_gpio))
-		gpio_free(ts_data->pdata->reset_gpio);
-
-	if (gpio_is_valid(ts_data->pdata->irq_gpio))
-		gpio_free(ts_data->pdata->irq_gpio);
 
 #if FTS_POWER_SOURCE_CUST_EN
 	fts_power_source_exit(ts_data);
