@@ -102,4 +102,40 @@ sub(c, """	ret = snd_soc_add_component_controls(component, aw88261_controls,
 
 	return aw88261_add_xm_controls(component);
 }""")
-print("xm_ctls: aw_dev_<ch>_prof and aw_dev_<ch>_switch added")
+# The vendor tuning leaves 2.1 dB of attenuation on the speakers (Music) and
+# 7 dB on the earpiece (Receiver). Let a module parameter set it per profile,
+# in the amp's 1/8 dB steps; -1 keeps the ACF value.
+sub(c, "static void aw88261_dev_set_volume(struct aw_device *aw_dev, unsigned int value)\n{",
+    """static int music_att;
+module_param(music_att, int, 0644);
+MODULE_PARM_DESC(music_att, "Music profile attenuation in 1/8 dB, -1 keeps the ACF value");
+
+static int receiver_att = 24;
+module_param(receiver_att, int, 0644);
+MODULE_PARM_DESC(receiver_att, "Receiver profile attenuation in 1/8 dB, -1 keeps the ACF value");
+
+static unsigned int aw88261_xm_att(struct aw_device *aw_dev, unsigned int acf)
+{
+	struct aw_prof_info *info = &aw_dev->prof_info;
+	const char *name = info->prof_name_list[info->prof_desc[aw_dev->prof_index].id];
+	int att = -1;
+
+	if (!strcmp(name, "Music"))
+		att = music_att;
+	else if (!strcmp(name, "Receiver"))
+		att = receiver_att;
+
+	if (att < 0 || att >= AW88261_MUTE_VOL)
+		return acf;
+
+	return att;
+}
+
+static void aw88261_dev_set_volume(struct aw_device *aw_dev, unsigned int value)
+{""")
+
+sub(c, """			aw_dev->volume_desc.init_volume =
+				REG_VAL_TO_DB(read_vol);""", """			aw_dev->volume_desc.init_volume =
+				aw88261_xm_att(aw_dev, REG_VAL_TO_DB(read_vol));""")
+
+print("xm_ctls: aw_dev_<ch>_prof, aw_dev_<ch>_switch and the profile attenuation added")
