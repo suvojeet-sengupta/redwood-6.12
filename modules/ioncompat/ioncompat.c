@@ -100,22 +100,30 @@ special:
 		return "qcom,qseecom";
 	if (mask & BIT(1))
 		return "qcom,qseecom-ta";
-	if ((mask & BIT(11)) || (flags & ION_FLAG_CP_SEC_DISPLAY))
+	if (flags & ION_FLAG_CP_SEC_DISPLAY)
 		return "qcom,secure-display";
+	/*
+	 * The CP flag picks the secure memory, not the mask: Codec2 asks for
+	 * its secure decoder input with mask 0xc00 and CP_BITSTREAM. Giving
+	 * that mask secure-display memory made qcedev map the buffer on its
+	 * non-secure bank while OEMCrypto's copy into it goes through the
+	 * secure one, so DRM playback faulted the SMMU and crashed. On 5.4
+	 * secure bitstreams were VMID_CP_BITSTREAM memory, the VMID of the
+	 * qcedev secure and video bitstream banks.
+	 */
 	if (flags & (ION_FLAG_SECURE | ION_FLAGS_CP_MASK)) {
 		if (flags & ION_FLAG_CP_PIXEL)
 			return "qcom,secure-pixel";
-		/*
-		 * Secure bitstreams were VMID_CP_BITSTREAM memory on 5.4, the
-		 * VMID of the qcedev secure and video bitstream banks; in
-		 * non-pixel memory OEMCrypto's copy into them faults the SMMU.
-		 */
 		if (flags & ION_FLAG_CP_BITSTREAM)
 			return "qcom,secure-bitstream";
 		if (flags & ION_FLAG_CP_CDSP)
 			return "qcom,secure-cdsp";
+		if (mask & BIT(11))
+			return "qcom,secure-display";
 		return "qcom,secure-non-pixel";
 	}
+	if (mask & BIT(11))
+		return "qcom,secure-display";
 	if (mask & BIT(4))
 		return "qcom,adsp";
 	if (mask & BIT(3))
