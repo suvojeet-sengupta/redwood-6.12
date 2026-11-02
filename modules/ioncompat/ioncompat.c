@@ -13,6 +13,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
@@ -47,6 +48,7 @@ struct ion_heap_query {
 #define ION_IOC_ABI_VERSION	_IOR(ION_IOC_MAGIC, 9, __u32)
 
 #define ION_FLAG_CACHED		1U
+#define ION_FLAG_CP_BITSTREAM	BIT(18)
 #define ION_FLAG_CP_PIXEL	BIT(19)
 #define ION_FLAG_CP_SEC_DISPLAY	BIT(25)
 #define ION_FLAG_CP_CDSP	BIT(29)
@@ -103,6 +105,13 @@ special:
 	if (flags & (ION_FLAG_SECURE | ION_FLAGS_CP_MASK)) {
 		if (flags & ION_FLAG_CP_PIXEL)
 			return "qcom,secure-pixel";
+		/*
+		 * Secure bitstreams were VMID_CP_BITSTREAM memory on 5.4, the
+		 * VMID of the qcedev secure and video bitstream banks; in
+		 * non-pixel memory OEMCrypto's copy into them faults the SMMU.
+		 */
+		if (flags & ION_FLAG_CP_BITSTREAM)
+			return "qcom,secure-bitstream";
 		if (flags & ION_FLAG_CP_CDSP)
 			return "qcom,secure-cdsp";
 		return "qcom,secure-non-pixel";
@@ -143,6 +152,11 @@ static long ion_alloc(struct ion_allocation_data __user *arg)
 		return -EINVAL;
 	name = pick_heap(d.heap_id_mask, d.flags);
 	buf = heap_alloc(name, d.len);
+	/* a kernel without the bitstream heap: the old non-pixel choice */
+	if (PTR_ERR_OR_ZERO(buf) == -ENODEV && !strcmp(name, "qcom,secure-bitstream")) {
+		name = "qcom,secure-non-pixel";
+		buf = heap_alloc(name, d.len);
+	}
 	/* like 5.4, an ordinary buffer may come from the system heap instead */
 	if (IS_ERR(buf) && !(d.flags & (ION_FLAG_SECURE | ION_FLAGS_CP_MASK)) &&
 	    !(d.heap_id_mask & (BIT(1) | BIT(7) | BIT(11)))) {
