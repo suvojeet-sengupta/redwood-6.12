@@ -101,6 +101,20 @@ static ssize_t usb_online_show(struct device *d, struct device_attribute *a, cha
 }
 static DEVICE_ATTR(usb_online, 0444, usb_online_show, NULL);
 
+/*
+ * mi_thermald caps the big cores hard as soon as its virtual skin sensor
+ * passes 35 C (down to 940 MHz on gold), which made the UI stutter in plain
+ * use, often while charging. Its configs are encrypted, so keep its caps
+ * from going below these floors instead; 0 leaves its cap as it is. The
+ * SoC's own thermal limits and the charging limits are not affected.
+ */
+static unsigned int gold_limit_floor = 1516800;
+module_param(gold_limit_floor, uint, 0644);
+MODULE_PARM_DESC(gold_limit_floor, "Lowest cap mi_thermald may set on the gold CPUs, in kHz");
+static unsigned int prime_limit_floor = 1862400;
+module_param(prime_limit_floor, uint, 0644);
+MODULE_PARM_DESC(prime_limit_floor, "Lowest cap mi_thermald may set on the prime CPU, in kHz");
+
 /* "cpu<N> <max kHz>": cap the frequency of the policy CPU N belongs to */
 static DEFINE_MUTEX(limits_lock);
 static struct freq_qos_request limit_req[NR_CPUS];
@@ -124,6 +138,10 @@ static ssize_t cpu_limits_store(struct device *d, struct device_attribute *a,
 	if (!policy)
 		return -ENODEV;
 	cpu = policy->cpu;
+	if (cpu == 7)
+		max = max(max, READ_ONCE(prime_limit_floor));
+	else if (cpu >= 4)
+		max = max(max, READ_ONCE(gold_limit_floor));
 	mutex_lock(&limits_lock);
 	if (!limit_policy[cpu]) {
 		ret = freq_qos_add_request(&policy->constraints, &limit_req[cpu],
