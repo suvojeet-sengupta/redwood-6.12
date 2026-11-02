@@ -325,8 +325,10 @@ exit:
 }
 
 /*
- * The secure heap a buffer type comes from: pixel buffers from the pixel
- * heap, bitstream and everything else from the non-pixel one.
+ * The secure heap a buffer type comes from. It must match the VMID of the
+ * secure context bank the buffer is mapped into (venus_sec_bitstream takes
+ * input, scratch and persist), or the video core faults on the first access
+ * in secure mode and TZ resets the phone.
  */
 static const char *secure_heap_for_buffer_type(
 	u32 session_type, enum hal_buffer buffer_type)
@@ -334,16 +336,20 @@ static const char *secure_heap_for_buffer_type(
 	switch (buffer_type) {
 	case HAL_BUFFER_INPUT:
 		return session_type == MSM_VIDC_ENCODER ?
-			"qcom,secure-pixel" : "qcom,secure-non-pixel";
+			"qcom,secure-pixel" : "qcom,secure-bitstream";
 	case HAL_BUFFER_OUTPUT:
 	case HAL_BUFFER_OUTPUT2:
 		return session_type == MSM_VIDC_ENCODER ?
-			"qcom,secure-non-pixel" : "qcom,secure-pixel";
+			"qcom,secure-bitstream" : "qcom,secure-pixel";
+	case HAL_BUFFER_INTERNAL_SCRATCH:
+		return "qcom,secure-bitstream";
+	case HAL_BUFFER_INTERNAL_SCRATCH_1:
+		return "qcom,secure-non-pixel";
 	case HAL_BUFFER_INTERNAL_SCRATCH_2:
 		return "qcom,secure-pixel";
-	case HAL_BUFFER_INTERNAL_SCRATCH:
-	case HAL_BUFFER_INTERNAL_SCRATCH_1:
 	case HAL_BUFFER_INTERNAL_PERSIST:
+		return session_type == MSM_VIDC_ENCODER ?
+			"qcom,secure-non-pixel" : "qcom,secure-bitstream";
 	case HAL_BUFFER_INTERNAL_PERSIST_1:
 		return "qcom,secure-non-pixel";
 	default:
