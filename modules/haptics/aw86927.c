@@ -88,6 +88,20 @@ static int aw86927_i2c_write(struct aw86927 *aw86927,
 	return ret;
 }
 
+/*
+ * The effect and FF gain mapping tops out at 0x80, unity gain, which leaves
+ * redwood's LRA weak; PLAYCFG2 goes up to 0xff. Scale every gain written.
+ */
+static unsigned int strength = 150;
+module_param(strength, uint, 0644);
+MODULE_PARM_DESC(strength, "Vibration strength in percent of the stock gain, 50 to 199");
+
+static void aw86927_write_gain(struct aw86927 *aw86927, unsigned int gain)
+{
+	gain = gain * clamp(strength, 50U, 199U) / 100;
+	aw86927_i2c_write(aw86927, AW86927_REG_PLAYCFG2, min(gain, 0xffU));
+}
+
 static int aw86927_i2c_read(struct aw86927 *aw86927,
 			   unsigned char reg_addr, unsigned char *reg_data)
 {
@@ -1515,16 +1529,16 @@ static void aw86927_haptic_set_gain(struct aw86927 *aw86927, unsigned char gain)
 		if (aw86927->effect_id == 10 && ret == 0 && temp < 0){
 			comp_gain = 2*(int)comp_gain/3;
 			aw_info("The comp_gain is:%d\n",comp_gain);
-			aw86927_i2c_write(aw86927, AW86927_REG_PLAYCFG2,(unsigned char)(comp_gain));
+			aw86927_write_gain(aw86927, comp_gain);
 			aw86927_i2c_read(aw86927,AW86927_REG_PLAYCFG2,&tep);
 			aw_info("The AW86927_REG_PLAYCFG2 is:%d\n",tep);
 		}else{
-			aw86927_i2c_write(aw86927, AW86927_REG_PLAYCFG2,comp_gain);
+			aw86927_write_gain(aw86927, comp_gain);
 		}
 	}else{
 		aw_dbg("%s: disable compsensation, vbat=%d, vbat_min=%d, vbat_ref=%d",
 				__func__, aw86927->vbat, AW86927_VBAT_MIN,AW86927_VBAT_REFER);
-		aw86927_i2c_write(aw86927, AW86927_REG_PLAYCFG2, gain);
+		aw86927_write_gain(aw86927, gain);
 	}
 }
 
@@ -4659,18 +4673,17 @@ void aw86927_haptics_set_gain_work_routine(struct work_struct *work)
 		if (aw86927->effect_id == 10 && ret == 0 && temp < 0){
 			comp_level = 2*(int)comp_level/3;
 			aw_info("The comp_level is:%d\n",comp_level);
-			aw86927_i2c_write(aw86927, AW86927_REG_PLAYCFG2,(unsigned char)(comp_level));
+			aw86927_write_gain(aw86927, comp_level);
 			aw86927_i2c_read(aw86927,AW86927_REG_PLAYCFG2,&tep);
 			aw_info("The AW86927_REG_PLAYCFG2 is:%d\n",tep);
 		}else{
-			aw86927_i2c_write(aw86927, AW86927_REG_PLAYCFG2, comp_level);
+			aw86927_write_gain(aw86927, comp_level);
 		}
 	} else {
 		aw_dbg("%s: disable compsensation, vbat=%d, vbat_min=%d, vbat_ref=%d",
 			 __func__, aw86927->vbat,
 			 AW86927_VBAT_MIN, AW86927_VBAT_REFER);
-		aw86927_i2c_write(aw86927, AW86927_REG_PLAYCFG2,
-				  aw86927->level);
+		aw86927_write_gain(aw86927, aw86927->level);
 	}
 }
 
