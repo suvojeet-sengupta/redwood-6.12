@@ -108,10 +108,10 @@ static DEVICE_ATTR(usb_online, 0444, usb_online_show, NULL);
  * from going below these floors instead; 0 leaves its cap as it is. The
  * SoC's own thermal limits and the charging limits are not affected.
  */
-static unsigned int gold_limit_floor = 1516800;
+static unsigned int gold_limit_floor = 2400000;
 module_param(gold_limit_floor, uint, 0644);
 MODULE_PARM_DESC(gold_limit_floor, "Lowest cap mi_thermald may set on the gold CPUs, in kHz");
-static unsigned int prime_limit_floor = 1862400;
+static unsigned int prime_limit_floor = 2400000;
 module_param(prime_limit_floor, uint, 0644);
 MODULE_PARM_DESC(prime_limit_floor, "Lowest cap mi_thermald may set on the prime CPU, in kHz");
 
