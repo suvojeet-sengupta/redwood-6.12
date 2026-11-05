@@ -5,15 +5,17 @@ tree into a kernel, modules and images for redwood. They expect:
 
 - the kernel source at `~/redwood-6.12-kernel` (branch `main`),
 - this repository at `~/redwood-6.12`,
-- scratch space in `~/work`, with the 5.4 ROM's ramdisks unpacked in
-  `~/work/android` for the packing scripts,
+- scratch space in `~/work`, which `setup-work.sh` fills with the copies of
+  these scripts that `build-all.sh` runs and a ROM's ramdisks,
 - `~/k612`, which `setup-k612.sh` fills with what out-of-tree modules build
   against.
 
 ## The usual way
 
 ```
-bash ~/redwood-6.12/scripts/build-all.sh          # everything below, in order
+bash ~/redwood-6.12/scripts/setup-work.sh <ROM boot.img> <ROM vendor_boot.img>
+bash ~/work/build-all.sh          # everything below, in order
+bash ~/redwood-6.12/scripts/make-zip.sh <ROM boot.img> <ROM vendor_boot.img>
 bash ~/redwood-6.12/scripts/make-prebuilt.sh <prebuilt repo> <5.4 prebuilt>
 ```
 
@@ -46,6 +48,7 @@ from there. `watch-build.sh` shows its progress live.
 
 | Script | Makes |
 |---|---|
+| `make-zip.sh` | An AnyKernel3 zip for the ROM whose images it was given: new kernel, `dtbo` and `vendor_boot`, keeping the boot ramdisk |
 | `make-prebuilt.sh` | Fills [device_xiaomi_redwood-kernel-6.12](https://github.com/suvojeet-sengupta/device_xiaomi_redwood-kernel-6.12) for ROM builds |
 | `pack-rom612.sh` | New boot and vendor_boot for a phone already on the 6.12 ROM: its own images with the new kernel and modules swapped in. `DROP=` and `KEEP=` leave modules out or keep test ones |
 | `pack-real.sh` | 6.12 boot images for an installed ROM, with its own ramdisks and real `/data` |
