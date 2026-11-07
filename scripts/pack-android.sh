@@ -43,7 +43,7 @@ for f in $M/*.ko; do $B/llvm-strip --strip-debug $f; done
 # the build's signature, and stripping drops it, so put the signed copies of
 # the ones Wi-Fi and Bluetooth need back after stripping. First stage init
 # gives up on the first module that fails, so they load last.
-SIGNED="rfkill.ko libarc4.ko bluetooth.ko btbcm.ko btqca.ko hci_uart.ko pwrseq-core.ko tipc.ko tipc_diag.ko"
+SIGNED="rfkill.ko libarc4.ko bluetooth.ko btbcm.ko btqca.ko hci_uart.ko pwrseq-core.ko tipc.ko tipc_diag.ko rust_binder.ko"
 for m in $SIGNED; do
 	f=$(find $OUT/sysdlkm -name $m | head -1)
 	[ -n "$f" ] && cp $f $M/$m
@@ -83,7 +83,9 @@ for m in $bad; do rm -f $M/$m; done
 } | awk '!seen[$0]++' | while read m; do [ -e $M/$m ] && echo $m; done > $M/modules.load.all
 # Wi-Fi and Bluetooth hang off the signed rfkill: load them last, so a
 # failure there can't stop anything else. qcacld doesn't use mac80211.
-LATE="tipc.ko tipc_diag.ko rfkill.ko cfg80211.ko cnss_prealloc.ko cnss_utils.ko wlan_firmware_service.ko cnss_nl.ko icnss2.ko wlan.ko bluetooth.ko hci_uart.ko btpower.ko bt_fm_slim.ko"
+# Rust Binder loads last of all: binder.impl=rust only takes effect when it
+# is in before binderfs is mounted, and if it fails C Binder carries on.
+LATE="tipc.ko tipc_diag.ko rfkill.ko cfg80211.ko cnss_prealloc.ko cnss_utils.ko wlan_firmware_service.ko cnss_nl.ko icnss2.ko wlan.ko bluetooth.ko hci_uart.ko btpower.ko bt_fm_slim.ko rust_binder.ko"
 grep -vxF -e mac80211.ko $(for m in $LATE; do echo "-e $m"; done) $M/modules.load.all > $M/modules.load
 for m in $LATE; do [ -e $M/$m ] && echo $m; done >> $M/modules.load
 rm $M/modules.load.all
@@ -115,7 +117,7 @@ python3 $MK --header_version 3 --kernel $D/Image --ramdisk $OUT/ramdisk.lz4 \
 	--os_version 17.0.0 --os_patch_level 2026-08 --output $OUT/boot.img
 python3 $MK --header_version 3 --pagesize 0x1000 --base 0 --kernel_offset 0x8000 \
 	--ramdisk_offset 0x01000000 --tags_offset 0x100 --dtb_offset 0x01f00000 \
-	--vendor_cmdline "$(sed s/init_fatal_reboot_target=recovery/init_fatal_reboot_target=bootloader/ $AN/vendor_cmdline.txt) clk_ignore_unused pd_ignore_unused printk.devkmsg=on" \
+	--vendor_cmdline "$(sed s/init_fatal_reboot_target=recovery/init_fatal_reboot_target=bootloader/ $AN/vendor_cmdline.txt) clk_ignore_unused pd_ignore_unused printk.devkmsg=on binder.impl=rust" \
 	--dtb $D/yupik.dtb --vendor_ramdisk $OUT/vendor_ramdisk.lz4 --vendor_boot $OUT/vendor_boot.img
 cp $W/dtfast/dtbo.img $OUT/dtbo.img
 echo "release $REL, $(wc -l < $M/modules.load) modules to load"
