@@ -55,6 +55,12 @@ from there. `watch-build.sh` shows its progress live.
 | `pack-android.sh` | Test images that boot the 5.4 ROM on 6.12 with `/data` in RAM, so nothing on the phone is touched |
 | `pack.sh` | The USB shell images from the early bring-up |
 
+## Publishing
+
+| Script | Does |
+|---|---|
+| `rom-sf.sh aospa\|pengu` | Uploads the ROM tree's newest zip and its sha256 to SourceForge, into a folder named after the zip's date. If that folder is new, the newest date folder there is deleted first; older ones stay. Shows the upload progress, then checks the public link and sha256. `--wait` waits for `rom-build.sh` to finish, `-y` skips the question before deleting, `--dry-run` only shows the plan. The OTA feed isn't touched |
+
 `pack-android.sh` needs `v54` (vendor ramdisk), `b54` (boot ramdisk) and
 `vendor_cmdline.txt` in `~/work/android`, plus `~/work/aw88261_acf.bin`
 from the vendor firmware.
