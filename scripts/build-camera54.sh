@@ -1,11 +1,13 @@
 #!/bin/bash
-# redwood's 5.4 lahaina camera driver (LineageOS sm8350 techpack/camera,
-# ~/los54), which the 5.4 CamX userspace and ICP firmware speak to, ported
-# by modules/camera54 (compat headers and port.py).
+# redwood's 5.4 lahaina camera driver (LineageOS sm8350 techpack/camera, kept
+# in redwood-6.12-kernel/vendor/camera54), which the 5.4 CamX userspace and
+# ICP firmware speak to, ported by modules/camera54 (compat headers and
+# port.py). ~/los54/techpack/camera is the fallback for older kernel trees.
 KP=~/redwood-6.12-kernel/kernel_platform; SOC=$KP/soc-repo; C=~/work/camera54; P=~/redwood-6.12/modules/camera54
 export PATH=$KP/prebuilts/clang/host/linux-x86/clang-r536225/bin:$KP/prebuilts/build-tools/linux-x86/bin:$PATH
 export LD_LIBRARY_PATH=$KP/prebuilts/kernel-build-tools/linux-x86/lib64
-rm -rf $C; cp -r ~/los54/techpack/camera $C; cp -r $P/compat $C/compat
+S=~/redwood-6.12-kernel/vendor/camera54; [ -d $S ] || S=~/los54/techpack/camera
+rm -rf $C; cp -r $S $C; cp -r $P/compat $C/compat
 python3 $P/port.py $C/drivers
 [ -f $P/smmu.py ] && python3 $P/smmu.py $C/drivers
 sed -e 's#^cameratree := $(srctree)/techpack/camera/drivers#cameratree := $(src)#' \
