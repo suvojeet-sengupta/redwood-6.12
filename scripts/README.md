@@ -49,6 +49,7 @@ from there. `watch-build.sh` shows its progress live.
 | Script | Makes |
 |---|---|
 | `make-zip.sh` | An AnyKernel3 zip for the ROM whose images it was given: new kernel, `dtbo` and `vendor_boot`, keeping the boot ramdisk |
+| `make-zip-keep.sh` | An AnyKernel3 zip that keeps the phone's ramdisks: the kernel goes into boot, only `lib/modules` changes in the vendor_boot ramdisk, and `dtbo` isn't touched, so it fits AOSPA and PenguinOS alike |
 | `make-prebuilt.sh` | Fills [device_xiaomi_redwood-kernel-6.12](https://github.com/suvojeet-sengupta/device_xiaomi_redwood-kernel-6.12) for ROM builds |
 | `pack-rom612.sh` | New boot and vendor_boot for a phone already on the 6.12 ROM: its own images with the new kernel and modules swapped in. `DROP=` and `KEEP=` leave modules out or keep test ones |
 | `pack-real.sh` | 6.12 boot images for an installed ROM, with its own ramdisks and real `/data` |
