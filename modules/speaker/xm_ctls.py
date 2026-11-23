@@ -19,12 +19,14 @@ def sub(path, old, new):
 
 sub(h, "\tbool phase_sync;\n};", "\tbool phase_sync;\n\tbool xm_off;\n};")
 
-# an amp switched off stays muted across restarts
-sub(c, """			dev_info(aw88261->aw_pa->dev, "start success\\n");
-			break;""", """			dev_info(aw88261->aw_pa->dev, "start success\\n");
-			if (aw88261->xm_off)
-				aw88261_dev_mute(aw88261->aw_pa, true);
-			break;""")
+# An amp switched off stays muted across restarts. Don't unmute it at start
+# at all: muting it after the start let the call play on the bottom speaker
+# for the fade in and out each time the shared TDM restarted.
+sub(c, """	/* close mute */
+	if (!aw88261->mute_st)
+		aw88261_dev_mute(aw_dev, false);""", """	/* close mute */
+	if (!aw88261->mute_st && !aw88261->xm_off)
+		aw88261_dev_mute(aw_dev, false);""")
 
 sub(c, "static int aw88261_codec_probe(struct snd_soc_component *component)\n{",
     """static const char * const aw88261_xm_switch_text[] = { "Disable", "Enable" };
